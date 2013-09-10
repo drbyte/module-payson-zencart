@@ -4,6 +4,11 @@ Requirements:
 
 * Curl
 -------------------------------------- 
+2013-09-10 v1.9
+
+*Bugfix: Ipn-request
+
+-------------------------------------- 
 2013-04-09 v1.8
 
 *Bugfix: TYPE=MyISAM keyword. It has been changed to ENGINE=MyISAM.
