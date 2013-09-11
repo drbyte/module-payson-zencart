@@ -61,7 +61,7 @@ class payson extends base {
         global $order, $messageStack;
         $this->code = 'payson';
         $this->codeVersion = '1.3.9';
-        $this->paysonModuleVersion = 'PAYSON-ZENCART-1.8';
+        $this->paysonModuleVersion = 'PAYSON-ZENCART-1.9';
         
         if (IS_ADMIN_FLAG === true) 
         {
@@ -453,6 +453,7 @@ class payson extends base {
         return $lang_code;
     }
     
+    
     /**
      * Store transaction info to the order and process any results that come back from the payment gateway
      */
@@ -460,7 +461,7 @@ class payson extends base {
     {
         global $db, $order, $_GET;
         $token = $_GET['TOKEN'];
-
+        
         include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
 
         $paysonTable = DB_PREFIX.$paysonDbTablePaytrans;
@@ -489,6 +490,20 @@ class payson extends base {
                              created        = '".$now."' ");
 
         $res = paysonGetPaymentDetails(MODULE_PAYMENT_PAYSON_BUSINESS_ID, MODULE_PAYMENT_PAYSON_MD5KEY, $this->paysonModuleVersion, $paysonPaymentDetailsURL, $token);
+        
+        $res_arr = explode("&",$res);
+        $i=0;
+        $ipn_status = '';
+	while($i < sizeof($res_arr) ){
+            list($tag, $val) = explode("=", $res_arr[$i]);
+                if ($val == 'COMPLETED' ){
+                    $ipn_status = $val;
+                    break;
+                    
+                }
+            $i++;    
+        }
+      
         $now = date("Y-m-d H:i:s");
         $db->Execute(" INSERT INTO ".$paysonEvents." SET 
                              event_tag      = 'GET_PAYMENT_DETAILS_RESPONSE',
@@ -507,7 +522,7 @@ class payson extends base {
         $local_data['ipn_verify_status'] = $ipnres->fields['logged_message'];
 
         $paymentResults = paysonGetPaysonResults($local_data,$res);
-        if ($paymentResults['status'] == "COMPLETED")
+        if ($ipn_status == "COMPLETED")
         {
             $db->Execute(" UPDATE ".$paysonTable." SET payson_status    ='COMPLETED',
                                                        payson_type      ='".$paymentResults['type']."',
@@ -516,7 +531,7 @@ class payson extends base {
         }
         else {
             // CANCEL or non approved
-            $db->Execute(" UPDATE ".$paysonTable." SET payson_status='".$paymentResults['status']."' WHERE token='".$token."'");
+            $db->Execute(" UPDATE ".$paysonTable." SET payson_status='".$ipn_status."' WHERE token='".$token."'");
             zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
         }
 
@@ -529,6 +544,7 @@ class payson extends base {
 
         return true;
     }
+
 
     function after_order_create($zf_order_id)
     { 
