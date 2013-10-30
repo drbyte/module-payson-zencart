@@ -24,7 +24,7 @@ define('MODULE_PAYMENT_PAYSON_INV_TEXT_CATALOG_TITLE', $paysonAdmin[$local_lang]
   define('MODULE_PAYMENT_PAYSON_INV_TEXT_DESCRIPTION',$temp); 
   
   define('MODULE_PAYMENT_PAYSON_INV_ACCEPT_TEXT', $paysonAdmin[$local_lang]['inv_accept_payson']);
-  define('MODULE_PAYMENT_PAYSON_INV_ENABLE_TEXT', $paysonAdmin[$local_lang]['inv_enable_payson']);
+  define('MODULE_PAYMENT_PAYSON_INV_ENABLE_TEXT', $paysonAdmin[$local_lang]['inv_enable_paysoMODULE_PAYMENT_PAYSON_INV_TEXT_CATALOG_LOGOn']);
   
   define('MODULE_PAYMENT_PAYSON_INV_AGENTID_HEAD',$paysonAdmin[$local_lang]['agentid_head']);
   define('MODULE_PAYMENT_PAYSON_INV_AGENTID_TEXT',  $paysonAdmin[$local_lang]['agentid_text']);

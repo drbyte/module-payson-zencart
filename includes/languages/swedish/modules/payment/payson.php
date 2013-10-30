@@ -51,9 +51,10 @@ define('MODULE_PAYMENT_PAYSON_TEXT_CATALOG_TITLE', $paysonAdmin[$local_lang]['te
  
   define('MODULE_PAYMENT_PAYSON_MARK_BUTTON_IMG', $paysonShop[$local_lang]['mark_button_img']);
   define('MODULE_PAYMENT_PAYSON_MARK_BUTTON_ALT', $paysonShop[$local_lang]['check_out_w_payson']);
- // define('MODULE_PAYMENT_PAYSON_ACCEPTANCE_MARK_TEXT', $paysonShop[$local_lang]['read_more_link']);
+  define('MODULE_PAYMENT_PAYSON_ACCEPTANCE_MARK_TEXT', $paysonShop[$local_lang]['read_more_link']);
 
-  define('MODULE_PAYMENT_PAYSON_TEXT_CATALOG_LOGO', '<img src="' . MODULE_PAYMENT_PAYSON_MARK_BUTTON_IMG . '" alt="' . MODULE_PAYMENT_PAYSON_MARK_BUTTON_ALT . '" title="' . MODULE_PAYMENT_PAYSON_MARK_BUTTON_ALT .  '" />');
+  define('MODULE_PAYMENT_PAYSON_TEXT_CATALOG_LOGO', '<img src="' . MODULE_PAYMENT_PAYSON_MARK_BUTTON_IMG . '" alt="' . MODULE_PAYMENT_PAYSON_MARK_BUTTON_ALT . '" title="' . MODULE_PAYMENT_PAYSON_MARK_BUTTON_ALT . '" /> &nbsp;' .
+                                                    '<span class="smallText">' . MODULE_PAYMENT_PAYSON_ACCEPTANCE_MARK_TEXT . '</span>');
 
   define('MODULE_PAYMENT_PAYSON_PURCHASE_DESCRIPTION_TITLE', $paysonShop[$local_lang]['order_id_from_text'].STORE_NAME);
   
@@ -61,6 +62,16 @@ define('MODULE_PAYMENT_PAYSON_TEXT_CATALOG_TITLE', $paysonAdmin[$local_lang]['te
   
   define('NOTIFY_PAYMENT_PAYSON_UNINSTALLED', $paysonAdmin[$local_lang]['module_installed']);
   define('NOTIFY_PAYMENT_PAYSON_INSTALLED',   $paysonAdmin[$local_lang]['module_uninstalled']);
+  
+  define('MODULE_PAYMENT_PAYSON_GENERIC_ERROR', 'Ett fel har uppstått, vänligen försök igen eller pröva ett annat betalsätt.');
+  
+  define('MODULE_PAYMENT_PAYSON_INV_MARK_BUTTON_IMG', $paysonShop[$local_lang]['inv_mark_button_img']);
+  define('MODULE_PAYMENT_PAYSON_INV_MARK_BUTTON_ALT', $paysonShop[$local_lang]['inv_check_out_w_payson']);
+  define('MODULE_PAYMENT_PAYSON_INV_ACCEPTANCE_MARK_TEXT', $paysonShop[$local_lang]['read_more_link']);
+  
+  define('MODULE_PAYMENT_PAYSON_INV_TEXT_CATALOG_LOGO', '<img src="' . MODULE_PAYMENT_PAYSON_INV_MARK_BUTTON_IMG . '" alt="' . MODULE_PAYMENT_PAYSON_INV_MARK_BUTTON_ALT . '" title="' . MODULE_PAYMENT_PAYSON_INV_MARK_BUTTON_ALT . '" /> &nbsp;' .
+                                                    '<span class="smallText">' . MODULE_PAYMENT_PAYSON_INV_ACCEPTANCE_MARK_TEXT . '</span>');
+?>
 
   
 ?>

@@ -24,6 +24,9 @@ define('MODULE_PAYMENT_PAYSON_TEXT_CATALOG_TITLE', $paysonAdmin[$local_lang]['te
   define('MODULE_PAYMENT_PAYSON_ACCEPT_TEXT', $paysonAdmin[$local_lang]['accept_payson']);
   define('MODULE_PAYMENT_PAYSON_ENABLE_TEXT', $paysonAdmin[$local_lang]['enable_payson']);
   
+  define('MODULE_PAYMENT_PAYSON_INVOICE_ENABLED_HEAD', $paysonAdmin[$local_lang]['enable_payson_invoice_head']);
+  define('MODULE_PAYMENT_PAYSON_INVOICE_ENABLED_TEXT', $paysonAdmin[$local_lang]['enable_payson_invoice_text']);
+  
   define('MODULE_PAYMENT_PAYSON_AGENTID_HEAD',$paysonAdmin[$local_lang]['agentid_head']);
   define('MODULE_PAYMENT_PAYSON_AGENTID_TEXT',  $paysonAdmin[$local_lang]['agentid_text']);
   
@@ -62,5 +65,12 @@ define('MODULE_PAYMENT_PAYSON_TEXT_CATALOG_TITLE', $paysonAdmin[$local_lang]['te
   define('NOTIFY_PAYMENT_PAYSON_UNINSTALLED', $paysonAdmin[$local_lang]['module_installed']);
   define('NOTIFY_PAYMENT_PAYSON_INSTALLED',   $paysonAdmin[$local_lang]['module_uninstalled']);
 
+  define('MODULE_PAYMENT_PAYSON_GENERIC_ERROR', 'An error has occured, please try again or chose another payment method');
   
+  define('MODULE_PAYMENT_PAYSON_INV_MARK_BUTTON_IMG', $paysonShop[$local_lang]['inv_mark_button_img']);
+  define('MODULE_PAYMENT_PAYSON_INV_MARK_BUTTON_ALT', $paysonShop[$local_lang]['inv_check_out_w_payson']);
+  define('MODULE_PAYMENT_PAYSON_INV_ACCEPTANCE_MARK_TEXT', $paysonShop[$local_lang]['read_more_link']);
+  
+  define('MODULE_PAYMENT_PAYSON_INV_TEXT_CATALOG_LOGO', '<img src="' . MODULE_PAYMENT_PAYSON_INV_MARK_BUTTON_IMG . '" alt="' . MODULE_PAYMENT_PAYSON_INV_MARK_BUTTON_ALT . '" title="' . MODULE_PAYMENT_PAYSON_INV_MARK_BUTTON_ALT . '" /> &nbsp;' .
+                                                    '<span class="smallText">' . MODULE_PAYMENT_PAYSON_INV_ACCEPTANCE_MARK_TEXT . '</span>');
 ?>

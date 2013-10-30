@@ -1,17 +1,17 @@
 Support:
 
 * zen-cart-v1.3.9h
-* Zen Cart v1.5.1/v1.5.1
 
 
 Requirements:
 
-* Swedish_language
+* Swedish_language_sv139h
 
 * Curl
 
 
 The modul don't support localhost or local ip-address.
+
 
 
 Installation:
@@ -20,9 +20,9 @@ Installation:
 
 * You should install the Swedish_language before installing the module
 
-* Download the module “payson_1.9_for_zencart” on your PC
+* Download the module “payson_1.7_for_zencart” on your PC
 
-* extract the module and go to the folder payson_1.9_for_zencart/ 
+* extract the module and go to the folder payson_1.7_for_zencart/ 
 
 * Copy all the files in the zencart folder to the root directory of your store 
 
@@ -46,7 +46,7 @@ Configuration:
 
 Upgradation: 
 
-* From payson_zencart_XX to payson_1.9_for_zencart 
+* From payson_zencart_XX to payson_1.6_for_zencart 
 
 * You should have a backup of your web store and database
 
@@ -58,19 +58,19 @@ Upgradation:
 
 * Go to Modules->Order Total and Uninstall Fakturaavgift
 
-* Download the module "payson_1.9_for_zencart" on your PC
+* Download the module "payson_1.6_for_zencart" on your PC
 
-* Extract the module and go to the folder payson_1.9_for_zencart
+* Extract the module and go to the folder payson_1.6_for_zencart
 
 * Go to your web shop  and rename the folder 
 zencart/includes/modules/payment/payson to zencart/includes/modules/payment/payson_old
 
-* Copy the folder payson_1.9_for_zencart/includes/modules/payment/payson to the folder  zencart/includes/modules/payment/  of your web shop.
+* Copy the folder payson_1.6_for_zencart/includes/modules/payment/payson to the folder  zencart/includes/modules/payment/  of your web shop.
 
 * Go to your web shop  and rename the file 
 zencart/includes/modules/payment/payson.php to zencart/includes/modules/payment/payson.php_old
 
-* Copy the file payson_1.9_for_zencart/includes/modules/payment/payson.php to the folder  zencart/includes/modules/payment/  of your web shop.
+* Copy the file payson_1.6_for_zencart/includes/modules/payment/payson.php to the folder  zencart/includes/modules/payment/  of your web shop.
 
 You have now upgraded your module successfully.
 
