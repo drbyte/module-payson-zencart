@@ -70,8 +70,5 @@ define('MODULE_PAYMENT_PAYSON_TEXT_CATALOG_TITLE', $paysonAdmin[$local_lang]['te
   define('MODULE_PAYMENT_PAYSON_INV_ACCEPTANCE_MARK_TEXT', $paysonShop[$local_lang]['read_more_link']);
   
   define('MODULE_PAYMENT_PAYSON_INV_TEXT_CATALOG_LOGO', '<img src="' . MODULE_PAYMENT_PAYSON_INV_MARK_BUTTON_IMG . '" alt="' . MODULE_PAYMENT_PAYSON_INV_MARK_BUTTON_ALT . '" title="' . MODULE_PAYMENT_PAYSON_INV_MARK_BUTTON_ALT . '" /> &nbsp;' .
-                                                    '<span class="smallText">' . MODULE_PAYMENT_PAYSON_INV_ACCEPTANCE_MARK_TEXT . '</span>');
-?>
-
-  
+                                                    '<span class="smallText">' . MODULE_PAYMENT_PAYSON_INV_ACCEPTANCE_MARK_TEXT . '</span>');  
 ?>

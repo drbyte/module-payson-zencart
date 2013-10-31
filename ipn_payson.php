@@ -1,104 +1,57 @@
 <?php
+
 /**
  * ipn_payson.php callback handler for Payson IPN notifications
  *
  * @package paymentMethod
  * @copyright Copyright 2010 Payson
  */
- $filelogging = false;
- function stringDump($string){
-  $filename= "ipn_payson.txt";
-  $handle = fopen($filename, "a");
-  fwrite($handle, "** ".date("Y-m-d H:i:s")." **\n");
-  fwrite($handle, "Data: $string; \n");
-  fclose($handle);
-}
+
 $req['input'] = file_get_contents('php://input');
-if ($filelogging){
-  stringDump($req['input']);
-  stringDump("token= ".$_POST['token']);
-} 
 
- require('includes/application_top.php');
- switch ($_GET['mode']){ 
-	case 'payson':
-	   require( DIR_FS_CATALOG . 'includes/modules/payment/payson.php');
-	break;
+require_once('includes/application_top.php');
+require_once( DIR_FS_CATALOG . 'includes/modules/payment/payson.php');
+require_once( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
 
-	case 'payson_inv':
-	   require( DIR_FS_CATALOG . 'includes/modules/payment/payson_inv.php');
-	break;
 
-	default :
-	 exit;
+global $db, $zco_notifier;
+
+if ($_GET['mode'] == "payson") {
+    $payment_class = new payson;
+    $userid = MODULE_PAYMENT_PAYSON_BUSINESS_ID;
+    $md5key = MODULE_PAYMENT_PAYSON_MD5KEY;
+} else {
+    die("Wrong mode was sent");
 }
 
- include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
+$moduleversion = $payment_class->getApplicationVersion();
 
- 
- global $db; 
- 
- 
- 
- switch ($_GET['mode']){ 
-	case 'payson':
-	   $payment_class = new payson;
-       $userid = MODULE_PAYMENT_PAYSON_BUSINESS_ID;
-       $md5key = MODULE_PAYMENT_PAYSON_MD5KEY;
-	break;
+$paysonPay = DB_PREFIX . $paysonDbTablePaytrans;
 
-	case 'payson_inv':
-	   $payment_class = new payson_inv;
-       $userid = MODULE_PAYMENT_PAYSON_INV_BUSINESS_ID;
-       $md5key = MODULE_PAYMENT_PAYSON_INV_MD5KEY;
-	break;
+$token = $_POST['token'];
 
-	default :
-	 exit;
-}
- $moduleversion = $payment_class->getApplicationVersion(); 
- 
-  
- //insert ipn_call in events
- $now = date("Y-m-d H:i:s");
- $paysonEvents = DB_PREFIX.$paysonDbTableEvents;
- 
- $message = serialize($req['input']);
- 
- $token           = $_POST['token'];
- $trackingId      = $_POST['trackingId'];
- if (!isset($trackingId)){
- 	exit;
- 	//to avoid spoofing from browsers
- }
- 
- $db->Execute(" INSERT INTO ".$paysonEvents." SET 
-                             event_tag      = 'IPN_CALL',
-                             token          = '".$token."',  
-		                     trackingId     = ".$trackingId.",
-                             logged_message = '".$message."',
-							 created        = '".$now."' ");
- 
- //insert ipn_validate_response in events
- $now = date("Y-m-d H:i:s");
- $db->Execute(" INSERT INTO ".$paysonEvents." SET 
-                             event_tag      = 'IPN_VALIDATE_REQUEST',
-                             token          = '".$token."',
-							 trackingId     = ".$trackingId.",  
-                             logged_message = '".$message."',
-							 created        = '".$now."' ");
- 
- 
- $response=paysonValidateIpnMessage($userid, $md5key, $moduleversion, $paysonIpnMessageValidationURL, $req['input']);
- 
- //insert ipn_validate_response in events
- $now = date("Y-m-d H:i:s");
- $db->Execute(" INSERT INTO ".$paysonEvents." SET 
-                             event_tag      = 'IPN_VALIDATE_RESPONSE',
-                             token          = '".$token."',
-							 trackingId     = ".$trackingId.",  
-                             logged_message = '".$response."',
-							 created        = '".$now."' ");
-  
- 
+
+$trackingId = zen_db_prepare_input($_POST['trackingId']);
+
+if(!isset($trackingId))
+    die("Tracking id has to be set");
+
+$response = paysonValidateIpnMessage($userid, $md5key, $moduleversion, $paysonIpnMessageValidationURL, $req['input']);
+
+if ($response != "VERIFIED")
+    die("Invalid response from Payson");
+
+$res = $db->Execute("SELECT orders_id, session_data FROM " . $paysonPay . " WHERE trackingId = " . $trackingId);
+
+if ($res->fields['orders_id'])
+    die("This order has already been completed");
+
+// Restore session data used during checkout
+session_decode($res->fields['session_data']);
+
+$_SESSION["paysonToken"] = $token;
+
+$checkoutProcessFile = DIR_WS_MODULES . FILENAME_CHECKOUT_PROCESS . ".php";
+
+include($checkoutProcessFile);
 ?>

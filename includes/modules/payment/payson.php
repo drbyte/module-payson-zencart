@@ -168,13 +168,12 @@ class payson extends base {
             $this->enabled = false;
             return;
         }
-        
+
         $fieldsArray[] = array("title" => MODULE_PAYMENT_PAYSON_INV_TEXT_CATALOG_LOGO, "field" => zen_draw_radio_field("payson-method", 'payson-invoice', false, 'id="payson-invoice"'), 'tag' => "payson-invoice");
 
         $methods = array('id' => $this->code,
             'module' => "Payson",
             'fields' => $fieldsArray
-                
         );
 
 
@@ -237,7 +236,7 @@ class payson extends base {
             );
 
             $total_amount += number_format(number_format($price_without_tax, 2, '.', '') * (1 + $taxPercentage) * $order->products[$i]['qty'], 2, '.', '');
-        }      
+        }
 
         //check for coupons----------------------------------   
         $coupon = 0;
@@ -338,40 +337,25 @@ class payson extends base {
             $postdata['fundingList'] = explode(",", MODULE_PAYMENT_PAYSON_PAYMETHOD_ITEMS);
         }
 
-
-        $now = date("Y-m-d H:i:s");
-        $db->Execute(" INSERT INTO " . $paysonEvents . " SET 
-                             event_tag      = 'TOKEN_REQUEST',
-                             trackingId     = " . $trackingId . ",  
-                             logged_message = '" . serialize($postdata) . "',
-                             created        = '" . $now . "' ");
-
-
         foreach ($orderitemslist as $key => &$orderItem) {
             $orderItem['description'] = urlencode($orderItem['description']);
         }
         $paysonTokenResponse = paysonTokenRequest(MODULE_PAYMENT_PAYSON_BUSINESS_ID, MODULE_PAYMENT_PAYSON_MD5KEY, $this->paysonModuleVersion, $paysonTokenRequestURL, $postdata, $orderitemslist, $defaults, true);
+
+
 
         //2 validate response
         $paysonTokenResponseValid = paysonTokenResponseValidate($paysonTokenResponse);
         if ($paysonTokenResponseValid == true) {
             $paysonToken = paysonGetToken($paysonTokenResponse);
 
-            $now = date("Y-m-d H:i:s");
-            $db->Execute(" INSERT INTO " . $paysonEvents . " SET 
-                             event_tag      = 'TOKEN_RESPONSE',
-                             token          = '" . $paysonToken['TOKEN'] . "',
-                             trackingId     = " . $trackingId . ",  
-                             logged_message = '" . serialize($paysonTokenResponse) . "',
-                             created        = '" . $now . "' ");
-
-
             //uppdate table payson_paytrans
             $db->Execute(" UPDATE " . $paysonTable . " SET 
 		                token              = '" . $paysonToken['TOKEN'] . "',
                                 curl_ack           = '" . $paysonToken['ack'] . "',
                                 curl_timestamp     = '" . $paysonToken['timestamp'] . "',
-                                curl_correlationId = '" . $paysonToken['correlationId'] . "'
+                                curl_correlationId = '" . $paysonToken['correlationId'] . "',
+                                session_data = '" . session_encode() . "'
 				WHERE trackingId   = " . $trackingId);
 
             //$_SESSION['PAYSON_TOKEN'] = $paysonToken['TOKEN'];
@@ -384,14 +368,6 @@ class payson extends base {
 
             $badResponse = paysonGetBadResponse($paysonTokenResponse);
 
-            $now = date("Y-m-d H:i:s");
-            $db->Execute(" INSERT INTO " . $paysonEvents . " SET 
-                             event_tag      = 'TOKEN_RESPONSE',
-                             token          = 'Bad token response',
-                             trackingId     = " . $trackingId . ",  
-                             logged_message = '" . serialize($paysonTokenResponse) . "',
-                             created        = '" . $now . "' ");
-
             //update table payson_paytrans
             $db->Execute(" UPDATE " . $paysonTable . " SET curl_ack = '" . $badResponse['ack'] . "',
                                      curl_timestamp     = '" . $badResponse['timestamp'] . "',
@@ -401,6 +377,7 @@ class payson extends base {
                                      WHERE trackingId = " . $trackingId);
 
             $messageStack->add_session("checkout_payment", MODULE_PAYMENT_PAYSON_GENERIC_ERROR);
+
             zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
         }
         return false;
@@ -451,11 +428,15 @@ class payson extends base {
      */
     function before_process() {
         global $db, $order, $_GET;
-        $token = $_GET['TOKEN'];
+
+        if (isset($_GET['TOKEN']))
+            $token = $_GET['TOKEN'];
+        else
+            $token = $_SESSION['paysonToken'];
+
+        $token = zen_db_prepare_input($token);
 
         include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
-
-
 
         $paysonTable = DB_PREFIX . $paysonDbTablePaytrans;
         $paysonEvents = DB_PREFIX . $paysonDbTableEvents;
@@ -471,34 +452,17 @@ class payson extends base {
             //token not found
             zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
         }
+
+        // If we have a order id then this order has already been created by a IPN call
+        if ($res->fields['orders_id'])
+            zen_redirect(zen_href_link(FILENAME_CHECKOUT_SUCCESS, (isset($_GET['action']) && $_GET['action'] == 'confirm' ? 'action=confirm' : ''), 'SSL'));
+
         $trackingId = $res->fields['trackingId'];
-        $now = date("Y-m-d H:i:s");
-        $db->Execute(" INSERT INTO " . $paysonEvents . " SET 
-                             event_tag      = 'GET_PAYMENT_DETAILS_REQUEST',
-                             token          = '" . $token . "',
-                             trackingId     = " . $trackingId . ",  
-                             logged_message = '" . $token . "',
-                             created        = '" . $now . "' ");
+
 
         $res = paysonGetPaymentDetails(MODULE_PAYMENT_PAYSON_BUSINESS_ID, MODULE_PAYMENT_PAYSON_MD5KEY, $this->paysonModuleVersion, $paysonPaymentDetailsURL, $token);
-        $now = date("Y-m-d H:i:s");
-        $db->Execute(" INSERT INTO " . $paysonEvents . " SET 
-                             event_tag      = 'GET_PAYMENT_DETAILS_RESPONSE',
-                             token          = '" . $token . "',
-                             trackingId     = " . $trackingId . ",  
-                             logged_message = '" . serialize($res) . "',
-                             created        = '" . $now . "' ");
 
-
-        $ipnres = $db->execute("SELECT * FROM " . $paysonEvents . " WHERE trackingId=" . $trackingId . " AND event_tag='IPN_VALIDATE_RESPONSE'");
-
-        //uppdatera tabellen payson paytrans med orderid
-        $local_data['amount'] = number_format($order->info['total'] * $order->info['currency_value'], 2, '.', ',');
-        $local_data['trackingId'] = $trackingId;
-        $local_data['currencyCode'] = strtoupper($_SESSION['currency']);
-        $local_data['ipn_verify_status'] = $ipnres->fields['logged_message'];
-
-        $paymentResults = paysonGetPaysonResults($local_data, $res);
+        $paymentResults = paysonGetPaysonResults($res);
 
         switch ($paymentResults['status']) {
             case 'COMPLETED':
@@ -526,7 +490,7 @@ class payson extends base {
         $order->info['comments'] = $new_comments;
 
         //since this in an invoice, we need to force update shippingadress
-        if ($isInvoice) {
+        if ($this->isInvoicePayment) {
             $shippingAddress = paysonGetShippingAddress($res);
             $order->delivery['firstname'] = $shippingAddress['name'];
             $order->delivery['lastname'] = '';
@@ -547,8 +511,13 @@ class payson extends base {
     }
 
     function after_order_create($zf_order_id) {
-        global $db, $_GET;
-        $token = $_GET['TOKEN'];
+        global $db;
+
+        if (isset($_GET['TOKEN']))
+            $token = $_GET['TOKEN'];
+        else
+            $token = $_SESSION['paysonToken'];
+
         //uppdatera tabellen payson paytrans med orderid
         include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
 
@@ -615,10 +584,8 @@ class payson extends base {
             include( DIR_FS_CATALOG . 'includes/languages/' . $_SESSION['language'] . '/modules/payment/payson.php');
         }
         $paysonTable = DB_PREFIX . $paysonDbTablePaytrans;
-        $paysonEvents = DB_PREFIX . $paysonDbTableEvents;
 
         $db->Execute(paysonCreatePaytransTableQuery($paysonTable));
-        $db->Execute(paysonCreateTransEventsTableQuery($paysonEvents));
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_PAYSON_ENABLE_TEXT . "', 'MODULE_PAYMENT_PAYSON_STATUS', 'True', '" . MODULE_PAYMENT_PAYSON_ACCEPT_TEXT . "', '6', '0', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
 
@@ -634,17 +601,18 @@ class payson extends base {
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_PAYSON_PAYMETHOD_ITEMS_HEAD . "', 'MODULE_PAYMENT_PAYSON_PAYMETHOD_ITEMS', 'CREDITCARD, BANK', '" . MODULE_PAYMENT_PAYSON_PAYMETHOD_ITEMS_TEXT . "', '6', '20', 'zen_cfg_select_multioption(array(\'CREDITCARD\',\'BANK\'), ', now())");
 
-
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_PAYSON_GUARANTEE_OFFERED_HEAD . "', 'MODULE_PAYMENT_PAYSON_GUARANTEE_OFFERED', 'NO', '" . MODULE_PAYMENT_PAYSON_GUARANTEE_OFFERED_TEXT . "', '6', '20', 'zen_cfg_select_option(array(\'OPTIONAL\',\'REQUIRED\',\'NO\'), ', now())");
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('" . MODULE_PAYMENT_PAYSON_CUSTOM_HEAD . "', 'MODULE_PAYMENT_PAYSON_CUSTOM','', '" . MODULE_PAYMENT_PAYSON_CUSTOM_TEXT . "', '6', '2', now())");
 
-
-
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, use_function, set_function, date_added) values ('Payment Zone', 'MODULE_PAYMENT_PAYSON_ZONE', '0', 'If a zone is selected, only enable this payment method for that zone.', '6', '4', 'zen_get_zone_class_title', 'zen_cfg_pull_down_zone_classes(', now())");
+
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Pending Notification Status', 'MODULE_PAYMENT_PAYSON_PROCESSING_STATUS_ID', '" . DEFAULT_ORDERS_STATUS_ID . "', 'Set the status of orders made with this payment module that are not yet completed to this value<br />(\'Pending\' recommended)', '6', '5', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
+
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Order Status', 'MODULE_PAYMENT_PAYSON_ORDER_STATUS_ID', '2', 'Set the status of orders made with this payment module that have completed payment to this value<br />(\'Processing\' recommended)', '6', '6', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
+
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Refund Order Status', 'MODULE_PAYMENT_PAYSON_REFUND_ORDER_STATUS_ID', '1', 'Set the status of orders that have been refunded made with this payment module to this value<br />(\'Pending\' recommended)', '6', '7', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
+
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Sort order of display.', 'MODULE_PAYMENT_PAYSON_SORT_ORDER', '0', 'Sort order of display. Lowest is displayed first.', '6', '8', now())");
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, use_function, set_function, date_added) values ('Tax Class', 'MODULE_PAYMENT_PAYSON_TAX_CLASS', '0', 'Use the following tax class on the payment charge.', '6', '9', 'zen_get_tax_class_title', 'zen_cfg_pull_down_tax_classes(', now())");
@@ -665,12 +633,8 @@ class payson extends base {
 
         $db->Execute("delete from " . TABLE_CONFIGURATION . " where configuration_key LIKE 'MODULE\_PAYMENT\_PAYSON\_%'");
 
-        //delete extra tables if the other module is removed
-        $check_query = $db->Execute("select configuration_value from " . TABLE_CONFIGURATION . " where configuration_key = 'MODULE_PAYMENT_PAYSON_INV_STATUS'");
-        if ($check_query->RecordCount() == 0) {
-            $db->Execute("drop table if exists " . $paysonTable);
-            $db->Execute("drop table if exists " . $paysonEvents);
-        }
+        $db->Execute("drop table if exists " . $paysonTable);
+        $db->Execute("drop table if exists " . $paysonEvents);
 
         $this->notify('NOTIFY_PAYMENT_PAYSON_UNINSTALLED');
     }
@@ -689,7 +653,6 @@ class payson extends base {
             'MODULE_PAYMENT_PAYSON_PAYMETHOD',
             'MODULE_PAYMENT_PAYSON_PAYMETHOD_ITEMS',
             'MODULE_PAYMENT_PAYSON_INVOICE_ENABLED',
-            //'MODULE_PAYMENT_PAYSON_GUARANTEE_OFFERED',
             'MODULE_PAYMENT_PAYSON_CUSTOM',
             'MODULE_PAYMENT_PAYSON_ZONE',
             'MODULE_PAYMENT_PAYSON_PROCESSING_STATUS_ID',
