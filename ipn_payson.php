@@ -1,12 +1,5 @@
 <?php
 
-/**
- * ipn_payson.php callback handler for Payson IPN notifications
- *
- * @package paymentMethod
- * @copyright Copyright 2010 Payson
- */
-
 $req['input'] = file_get_contents('php://input');
 
 require_once('includes/application_top.php');

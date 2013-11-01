@@ -416,15 +416,7 @@ function getVersionPS() {
         return 'NONE';
     }
 }
-
-function ipn_update_orders_status_and_history($ordersID, $new_status = 1) {
-    global $db;    
-    $db->Execute("update " . TABLE_ORDERS  . "
-                  set orders_status = '" . (int)$new_status . "'
-                  where orders_id = '" . (int)$ordersID . "'");
-}
     
-
 function paysonCreatePaytransTableQuery($table_name) {
     return " CREATE TABLE IF NOT EXISTS " . $table_name . " (
           `payson_paytrans_id` int(11) unsigned NOT NULL auto_increment,

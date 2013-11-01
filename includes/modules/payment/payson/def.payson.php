@@ -208,18 +208,18 @@ $paysonAdmin['SV']['inv_fee_amount_text'] = 'Faktureringsavgift';
 
 
 //inv updating in admin
-$paysonAdmin['EN']['inv_nosuchorder'] = 'Can not find an Payson Invoice buy on that order';
-$paysonAdmin['SV']['inv_nosuchorder'] = 'Hittar inget Payson fakturak&oumlp f&oumlr denna order';
+$paysonAdmin['EN']['nosuchorder'] = 'Can not find an Payson Invoice buy on that order';
+$paysonAdmin['SV']['nosuchorder'] = 'Hittar inget Payson fakturak&oumlp f&oumlr denna order';
 
-$paysonAdmin['EN']['inv_cant_update'] = 'Can not update invoice to desired invoice status';
-$paysonAdmin['SV']['inv_cant_update'] = 'Kan inte uppdatera fakturastatus till &oumlnskad status';
+$paysonAdmin['EN']['cant_update'] = 'Can not update invoice to desired invoice status';
+$paysonAdmin['SV']['cant_update'] = 'Kan inte uppdatera fakturastatus till &oumlnskad status';
 
 
-$paysonAdmin['EN']['inv_update_fail'] = 'Failed update status to ';
-$paysonAdmin['SV']['inv_update_fail'] = 'Misslyckades att uppdatera status till ';
+$paysonAdmin['EN']['update_fail'] = 'Failed update status to ';
+$paysonAdmin['SV']['update_fail'] = 'Misslyckades att uppdatera status till ';
 
-$paysonAdmin['EN']['inv_update_ok'] = 'Updated the invoice status of the Payson Invoice to ';
-$paysonAdmin['SV']['inv_update_ok'] = 'Uppdaterade Paysonfakturans status till ';
+$paysonAdmin['EN']['update_ok'] = 'Updated the invoice status of the Payson Invoice to ';
+$paysonAdmin['SV']['update_ok'] = 'Uppdaterade Paysonfakturans status till ';
 
 
 $paysonAdmin['EN']['inv_statuschange_hint_head'] = 'Payson Invoice Status Change Hints';
@@ -243,6 +243,12 @@ $paysonAdmin['SV']['enable_payson_invoice_head'] = 'Aktivera Payson Faktura';
 
 $paysonAdmin['EN']['enable_payson_invoice_text'] = 'Please note that this requires a separate contract with Payson';
 $paysonAdmin['SV']['enable_payson_invoice_text'] = 'Vänligen notera att detta kräver ett separat avtal med Payson';
+
+$paysonAdmin['EN']['manage_invoice_from_store_head'] = 'Manage invoice from store';
+$paysonAdmin['SV']['manage_invoice_from_store_head'] = 'Hantera faktura från butiken';
+
+$paysonAdmin['EN']['manage_invoice_from_store_text'] = 'Please not that it is important that you use set order statuses that make sense for you when using this function';
+$paysonAdmin['SV']['manage_invoice_from_store_text'] = 'Vänligen notera att det är mycket viktigt att du använder en orderstatus som inte gör att du blandar ihop ordrar';
 
 //db table names
 $paysonDbTablePaytrans = "payson_paytrans";

@@ -80,8 +80,15 @@ class payson extends base {
             $this->order_status = MODULE_PAYMENT_PAYSON_ORDER_STATUS_ID;
         }
 
-        if (MODULE_PAYMENT_PAYSON_INVOICE_ENABLED) {
+        if (MODULE_PAYMENT_PAYSON_INVOICE_ENABLED == "True") {
             $this->invoiceEnabled = true;
+
+            if (isset($_REQUEST['payson-method']) && $_REQUEST['payson-method'] == "payson-invoice") {
+                $this->isInvoicePayment = true;
+                $_SESSION['paysonIsInvoice'] = true;
+            } else {
+                $_SESSION['paysonIsInvoice'] = false;
+            }
         }
 
         if (is_object($order)) {
@@ -100,13 +107,6 @@ class payson extends base {
             $this->invoiceEnabled = false;
         } else if (strtoupper($_SESSION["currency"] != "SEK")) {
             $this->invoiceEnabled = false;
-        }
-
-        if (isset($_POST['payson-method']) && $_POST['payson-method'] == "payson-invoice") {
-            $this->isInvoicePayment = true;
-            $_SESSION['paysonIsInvoice'] = true;
-        } else {
-            $_SESSION['paysonIsInvoice'] = false;
         }
     }
 
@@ -158,18 +158,26 @@ class payson extends base {
      * @return array
      */
     function selection() {
+        
+        global $order;
+        include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
+        
         $fieldsArray = array();
 
-        $fieldsArray[] = array("title" => MODULE_PAYMENT_PAYSON_TEXT_CATALOG_LOGO, "field" => zen_draw_radio_field("payson-method", 'payson-card-bank', true, 'id="payson-card-bank"'), 'tag' => "payson");
+        $currentPaymentMethod = $_SESSION['payment'];
+
+        $isInvoiceSelected = $currentPaymentMethod == "payson" && $this->isInvoicePayment;
+
+        $fieldsArray[] = array("title" => MODULE_PAYMENT_PAYSON_TEXT_CATALOG_LOGO, "field" => zen_draw_radio_field("payson-method", 'payson-card-bank', !$isInvoiceSelected, 'id="payson-card-bank" onclick="document.getElementById(\'pmt-payson\').checked = checked;"'), 'tag' => "payson-card-bank");
         //check for min order value
 
-        if ($order->info['total'] * $order->info['currency_value'] < $paysonInvoiceMinimalOrderValue) {
-            //below min amount
-            $this->enabled = false;
-            return;
-        }
+        $invoiceAmountLimit = $paysonInvoiceMinimalOrderValue;
 
-        $fieldsArray[] = array("title" => MODULE_PAYMENT_PAYSON_INV_TEXT_CATALOG_LOGO, "field" => zen_draw_radio_field("payson-method", 'payson-invoice', false, 'id="payson-invoice"'), 'tag' => "payson-invoice");
+        if ($this->invoiceEnabled && $order->info['total'] * $order->info['currency_value'] > $invoiceAmountLimit) {
+
+            $fieldsArray[] = array("title" => MODULE_PAYMENT_PAYSON_INV_TEXT_CATALOG_LOGO, "field" => zen_draw_radio_field("payson-method", 'payson-invoice', $isInvoiceSelected, 'id="payson-invoice" onclick="document.getElementById(\'pmt-payson\').checked = checked;"'), 'tag' => "payson-invoice");
+            
+        }
 
         $methods = array('id' => $this->code,
             'module' => "Payson",
@@ -187,8 +195,9 @@ class payson extends base {
      * @return boolean
      */
     function pre_confirmation_check() {
-        //before generating html for step3
+        
         include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
+        
         global $db, $order, $currencies, $currency, $messageStack;
 
         //0 determine currency, language, amount and get an temporary trackingid
@@ -378,7 +387,7 @@ class payson extends base {
 
             $messageStack->add_session("checkout_payment", MODULE_PAYMENT_PAYSON_GENERIC_ERROR);
 
-            zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
+            zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, 'payson-method=' . $_POST['payson-method'], 'SSL', true, false));
         }
         return false;
     }
@@ -481,14 +490,6 @@ class payson extends base {
                 zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
         }
 
-
-        $add_comments = MODULE_PAYMENT_PAYSON_INV_TEXT_PAYSONREF;
-        $add_comments .= ": ";
-        $add_comments .= $paymentResults['purchaseId'];
-        $new_comments = $order->info['comments'];
-        $new_comments .= $add_comments;
-        $order->info['comments'] = $new_comments;
-
         //since this in an invoice, we need to force update shippingadress
         if ($this->isInvoicePayment) {
             $shippingAddress = paysonGetShippingAddress($res);
@@ -518,7 +519,6 @@ class payson extends base {
         else
             $token = $_SESSION['paysonToken'];
 
-        //uppdatera tabellen payson paytrans med orderid
         include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
 
         $paysonTable = DB_PREFIX . $paysonDbTablePaytrans;
@@ -589,7 +589,7 @@ class payson extends base {
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_PAYSON_ENABLE_TEXT . "', 'MODULE_PAYMENT_PAYSON_STATUS', 'True', '" . MODULE_PAYMENT_PAYSON_ACCEPT_TEXT . "', '6', '0', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
 
-        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_PAYSON_INVOICE_ENABLED_HEAD . "', 'MODULE_PAYMENT_PAYSON_INVOICE_ENABLED', 'True', '" . MODULE_PAYMENT_PAYSON_INVOICE_ENABLED_TEXT . "', '6', '1', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
+        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_PAYSON_INVOICE_ENABLED_HEAD . "', 'MODULE_PAYMENT_PAYSON_INVOICE_ENABLED', 'False', '" . MODULE_PAYMENT_PAYSON_INVOICE_ENABLED_TEXT . "', '6', '1', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('" . MODULE_PAYMENT_PAYSON_AGENTID_HEAD . "', 'MODULE_PAYMENT_PAYSON_BUSINESS_ID','', '" . MODULE_PAYMENT_PAYSON_AGENTID_TEXT . "', '6', '2', now())");
 
@@ -613,9 +613,15 @@ class payson extends base {
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Refund Order Status', 'MODULE_PAYMENT_PAYSON_REFUND_ORDER_STATUS_ID', '1', 'Set the status of orders that have been refunded made with this payment module to this value<br />(\'Pending\' recommended)', '6', '7', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
 
-        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Sort order of display.', 'MODULE_PAYMENT_PAYSON_SORT_ORDER', '0', 'Sort order of display. Lowest is displayed first.', '6', '8', now())");
+        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Send Payson invoice when status is changed to', 'MODULE_PAYMENT_PAYSON_INV_DELIVERED_STATUS_ID', '3', 'Send PDF invoice to user when I change order status to: <br />(\'Shipped\' recommended)', '6', '7', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
 
-        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, use_function, set_function, date_added) values ('Tax Class', 'MODULE_PAYMENT_PAYSON_TAX_CLASS', '0', 'Use the following tax class on the payment charge.', '6', '9', 'zen_get_tax_class_title', 'zen_cfg_pull_down_tax_classes(', now())");
+        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_PAYSON_INVOICE_MANAGE_BACKEND_HEAD . "', 'MODULE_PAYMENT_PAYSON_INVOICE_MANAGE_BACKEND', 'False', '" . MODULE_PAYMENT_PAYSON_INVOICE_MANAGE_BACKEND_TEXT . "', '6', '1', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
+
+        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Cancel Payson invoice when status is changed to', 'MODULE_PAYMENT_PAYSON_INV_CANCELED_STATUS_ID', '1', 'Cancel the Payson invoice when I change order status to: <br />(\'New status Canceled\' recommended)', '6', '8', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
+
+        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Credit Payson invoice when status is changed to', 'MODULE_PAYMENT_PAYSON_INV_CREDIT_STATUS_ID', '1', 'Credit the Payson invoice when I change order status to: <br />(\'New status Credited\' recommended)', '6', '9', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
+
+        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Sort order of display.', 'MODULE_PAYMENT_PAYSON_SORT_ORDER', '0', 'Sort order of display. Lowest is displayed first.', '6', '8', now())");
 
         $this->notify('NOTIFY_PAYMENT_PAYSON_INSTALLED');
     }
@@ -646,6 +652,7 @@ class payson extends base {
      */
     function keys() {
         $keys_list = array(
+            'MODULE_PAYMENT_PAYSON_SORT_ORDER',
             'MODULE_PAYMENT_PAYSON_STATUS',
             'MODULE_PAYMENT_PAYSON_BUSINESS_ID',
             'MODULE_PAYMENT_PAYSON_SELLER_EMAIL',
@@ -658,8 +665,10 @@ class payson extends base {
             'MODULE_PAYMENT_PAYSON_PROCESSING_STATUS_ID',
             'MODULE_PAYMENT_PAYSON_ORDER_STATUS_ID',
             'MODULE_PAYMENT_PAYSON_REFUND_ORDER_STATUS_ID',
-            'MODULE_PAYMENT_PAYSON_SORT_ORDER',
-            'MODULE_PAYMENT_PAYSON_TAX_CLASS'
+            'MODULE_PAYMENT_PAYSON_INVOICE_MANAGE_BACKEND',
+            'MODULE_PAYMENT_PAYSON_INV_DELIVERED_STATUS_ID',
+            'MODULE_PAYMENT_PAYSON_INV_CANCELED_STATUS_ID',
+            'MODULE_PAYMENT_PAYSON_INV_CREDIT_STATUS_ID',
         );
 
         return $keys_list;
@@ -668,10 +677,13 @@ class payson extends base {
     function _doStatusUpdate($oID, $newstatus, $comments, $customer_notified, $check_status_fields_orders_status) {
         global $db, $messageStack;
 
+        $isEnabled = MODULE_PAYMENT_PAYSON_INVOICE_MANAGE_BACKEND;
+        if ($isEnabled === "False")
+            return;
+
         include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
 
         $paysonTable = DB_PREFIX . $paysonDbTablePaytrans;
-        $paysonEvents = DB_PREFIX . $paysonDbTableEvents;
 
         //get the trackingid, ,paymenttype, invoicestatus and token for this orders_id
         $res = $db->Execute(" SELECT * FROM " . $paysonTable . " WHERE payson_type='INVOICE' AND orders_id=" . $oID);
@@ -683,39 +695,20 @@ class payson extends base {
         $trackingId = $res->fields['trackingId'];
         $now = date("Y-m-d H:i:s");
         //-----------get values ------------------------------------------
-        $userid = MODULE_PAYMENT_PAYSON_INV_BUSINESS_ID;
-        $md5key = MODULE_PAYMENT_PAYSON_INV_MD5KEY;
+        $userid = MODULE_PAYMENT_PAYSON_BUSINESS_ID;
+        $md5key = MODULE_PAYMENT_PAYSON_MD5KEY;
         $moduleversion = $this->paysonModuleVersion;
         $url = $paysonPaymentUpdateURL;
         //----------------------------------------------------------------
         if ($res->fields['invoice_status'] == 'ORDERCREATED') {
-            //possible to CANCELORDER or SHIPORDER
             switch ($newstatus) {
                 case MODULE_PAYMENT_PAYSON_INV_DELIVERED_STATUS_ID:
                     $new_invoice_status = "SHIPPED";
-                    //skriv not till events om beg�ran, oavsett
-                    $message = "FROM:" . $res->fields['invoice_status'] . ":TO:" . $new_invoice_status;
-                    $db->Execute(" INSERT INTO " . $paysonEvents . " SET 
-                             event_tag      = 'SHOPORG_INV_STATUS_CHANGE_REQ',
-                             token          = '" . $token . "',
-                             trackingId     = " . $trackingId . ",  
-                             logged_message = '" . $message . "',
-                             created        = '" . $now . "' ");
-
                     $presult = paysonPaymentUpdate($userid, $md5key, $moduleversion, $url, $token, 'SHIPORDER');
                     break;
 
                 case MODULE_PAYMENT_PAYSON_INV_CANCELED_STATUS_ID:
                     $new_invoice_status = "ORDERCANCELED";
-                    //skriv not till events om beg�ran, oavsett
-                    $message = "FROM:" . $res->fields['invoice_status'] . ":TO:" . $new_invoice_status;
-                    $db->Execute(" INSERT INTO " . $paysonEvents . " SET 
-                             event_tag      = 'SHOPORG_INV_STATUS_CHANGE_REQ',
-                             token          = '" . $token . "',
-                             trackingId     = " . $trackingId . ",  
-                             logged_message = '" . $message . "',
-                              created        = '" . $now . "' ");
-
                     $presult = paysonPaymentUpdate($userid, $md5key, $moduleversion, $url, $token, 'CANCELORDER');
                     break;
 
@@ -724,19 +717,10 @@ class payson extends base {
                     return;
             }
         } else if ($res->fields['invoice_status'] == 'SHIPPED') {
-            //possible to CREDITORDER
+
             switch ($newstatus) {
                 case MODULE_PAYMENT_PAYSON_INV_CREDIT_STATUS_ID:
                     $new_invoice_status = "CREDITED";
-                    //skriv not till events om beg�ran, oavsett
-                    $message = "FROM:" . $res->fields['invoice_status'] . ":TO:" . $new_invoice_status;
-                    $db->Execute(" INSERT INTO " . $paysonEvents . " SET 
-                             event_tag      = 'SHOPORG_INV_STATUS_CHANGE_REQ',
-                             token          = '" . $token . "',
-                             trackingId     = " . $trackingId . ",  
-                             logged_message = '" . $message . "',
-                             created        = '" . $now . "' ");
-
                     $presult = paysonPaymentUpdate($userid, $md5key, $moduleversion, $url, $token, 'CREDITORDER');
                     break;
 
@@ -751,33 +735,11 @@ class payson extends base {
         //gick det bra?
         if (!$presult) {
             $messageStack->add_session(MODULE_PAYMENT_PAYSON_INV_INVSTATUS_UPDATED_FAIL . $new_invoice_status, 'error');
-            //skriv not till events om misslyckat res
-            $message = "FAILED";
-            $db->Execute(" INSERT INTO " . $paysonEvents . " SET 
-                             event_tag      = 'SHOPORG_INV_STATUS_CHANGE_RES',
-                             token          = '" . $token . "',
-                             trackingId     = " . $trackingId . ",  
-                             logged_message = '" . $message . "',
-                             created        = '" . $now . "' ");
-
             return;
         }
-
         //update paytrans with new invoice_status
         $db->Execute(" UPDATE " . $paysonTable . " SET invoice_status='" . $new_invoice_status . "' WHERE orders_id=" . $oID);
-        //skriv not till events
-        $trackingId = $res->fields['trackingId'];
-        $now = date("Y-m-d H:i:s");
-        //skriv not till events om lyckat res
-        $message = "SUCCESS";
-        $db->Execute(" INSERT INTO " . $paysonEvents . " SET 
-                             event_tag      = 'SHOPORG_INV_STATUS_CHANGE_RES',
-                             token          = '" . $token . "',
-                             trackingId     = " . $trackingId . ",  
-                             logged_message = '" . $message . "',
-                             created        = '" . $now . "' ");
 
-        //meddelande
         $messageStack->add_session(MODULE_PAYMENT_PAYSON_INV_INVSTATUS_UPDATED_OK . $new_invoice_status, 'success');
         return true;
     }
