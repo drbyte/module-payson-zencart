@@ -48,6 +48,7 @@ class payson extends base {
     var $enabled;
     var $paysonModuleVersion;
     var $invoiceEnabled;
+    var $directEnabled;
     var $isInvoicePayment;
 
     /**
@@ -62,9 +63,10 @@ class payson extends base {
         global $order;
         $this->code = 'payson';
         $this->codeVersion = '1.3.9';
-        $this->paysonModuleVersion = 'PAYSON-ZENCART-1.7';
+        $this->paysonModuleVersion = 'PAYSON-ZENCART-2.0';
 
         $this->invoiceEnabled = false;
+        $this->directEnabled = false;
 
         if (IS_ADMIN_FLAG === true) {
             $this->title = MODULE_PAYMENT_PAYSON_TEXT_ADMIN_TITLE; // Payment Module title in Admin
@@ -91,6 +93,17 @@ class payson extends base {
             }
         }
 
+        $paysonDirectSetting = MODULE_PAYMENT_PAYSON_PAYMETHOD;
+        $paysonDirectMethodsSelected = MODULE_PAYMENT_PAYSON_PAYMETHOD_ITEMS;
+
+        if ($paysonDirectSetting != "Disabled") {
+            
+            $this->directEnabled = true;
+
+            if ($paysonDirectSetting == "Check boxes below" && $paysonDirectMethodsSelected == "--none--")
+                $this->directEnabled = false;
+        }
+
         if (is_object($order)) {
             $this->update_status();
         }
@@ -108,6 +121,9 @@ class payson extends base {
         } else if (strtoupper($_SESSION["currency"] != "SEK")) {
             $this->invoiceEnabled = false;
         }
+
+        if (!($this->directEnabled || $this->invoiceEnabled ))
+            $this->enabled = false;
     }
 
     function getApplicationVersion() {
@@ -158,25 +174,23 @@ class payson extends base {
      * @return array
      */
     function selection() {
-        
+
         global $order;
         include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
-        
+
         $fieldsArray = array();
 
         $currentPaymentMethod = $_SESSION['payment'];
 
         $isInvoiceSelected = $currentPaymentMethod == "payson" && $this->isInvoicePayment;
 
-        $fieldsArray[] = array("title" => MODULE_PAYMENT_PAYSON_TEXT_CATALOG_LOGO, "field" => zen_draw_radio_field("payson-method", 'payson-card-bank', !$isInvoiceSelected, 'id="payson-card-bank" onclick="document.getElementById(\'pmt-payson\').checked = checked;"'), 'tag' => "payson-card-bank");
-        //check for min order value
-
+        if ($this->directEnabled)
+            $fieldsArray[] = array("title" => MODULE_PAYMENT_PAYSON_TEXT_CATALOG_LOGO, "field" => zen_draw_radio_field("payson-method", 'payson-card-bank', !$isInvoiceSelected, 'id="payson-card-bank" onclick="document.getElementById(\'pmt-payson\').checked = checked;"'), 'tag' => "payson-card-bank");
+        
         $invoiceAmountLimit = $paysonInvoiceMinimalOrderValue;
-
         if ($this->invoiceEnabled && $order->info['total'] * $order->info['currency_value'] > $invoiceAmountLimit) {
 
             $fieldsArray[] = array("title" => MODULE_PAYMENT_PAYSON_INV_TEXT_CATALOG_LOGO, "field" => zen_draw_radio_field("payson-method", 'payson-invoice', $isInvoiceSelected, 'id="payson-invoice" onclick="document.getElementById(\'pmt-payson\').checked = checked;"'), 'tag' => "payson-invoice");
-            
         }
 
         $methods = array('id' => $this->code,
@@ -195,9 +209,9 @@ class payson extends base {
      * @return boolean
      */
     function pre_confirmation_check() {
-        
+
         include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
-        
+
         global $db, $order, $currencies, $currency, $messageStack;
 
         //0 determine currency, language, amount and get an temporary trackingid
@@ -597,7 +611,7 @@ class payson extends base {
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('" . MODULE_PAYMENT_PAYSON_MD5KEY_HEAD . "', 'MODULE_PAYMENT_PAYSON_MD5KEY','', '" . MODULE_PAYMENT_PAYSON_MD5KEY_TEXT . "', '6', '2', now())");
 
-        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_PAYSON_PAYMETHOD_HEAD . "', 'MODULE_PAYMENT_PAYSON_PAYMETHOD', 'ALL', '" . MODULE_PAYMENT_PAYSON_PAYMETHOD_TEXT . "', '6', '20', 'zen_cfg_select_option(array(\'ALL\',\'Check boxes below\'), ', now())");
+        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_PAYSON_PAYMETHOD_HEAD . "', 'MODULE_PAYMENT_PAYSON_PAYMETHOD', 'ALL', '" . MODULE_PAYMENT_PAYSON_PAYMETHOD_TEXT . "', '6', '20', 'zen_cfg_select_option(array(\'Disabled\',\'ALL\', \'Check boxes below\'), ', now())");
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_PAYSON_PAYMETHOD_ITEMS_HEAD . "', 'MODULE_PAYMENT_PAYSON_PAYMETHOD_ITEMS', 'CREDITCARD, BANK', '" . MODULE_PAYMENT_PAYSON_PAYMETHOD_ITEMS_TEXT . "', '6', '20', 'zen_cfg_select_multioption(array(\'CREDITCARD\',\'BANK\'), ', now())");
 
@@ -677,8 +691,8 @@ class payson extends base {
     function _doStatusUpdate($oID, $newstatus, $comments, $customer_notified, $check_status_fields_orders_status) {
         global $db, $messageStack;
 
-        $isEnabled = MODULE_PAYMENT_PAYSON_INVOICE_MANAGE_BACKEND;
-        if ($isEnabled === "False")
+        $invoiceHandlingEnabled = MODULE_PAYMENT_PAYSON_INVOICE_MANAGE_BACKEND;
+        if ($$invoiceHandlingEnabled === "False")
             return;
 
         include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
@@ -694,12 +708,12 @@ class payson extends base {
         $token = $res->fields['token'];
         $trackingId = $res->fields['trackingId'];
         $now = date("Y-m-d H:i:s");
-        //-----------get values ------------------------------------------
+        
         $userid = MODULE_PAYMENT_PAYSON_BUSINESS_ID;
         $md5key = MODULE_PAYMENT_PAYSON_MD5KEY;
         $moduleversion = $this->paysonModuleVersion;
         $url = $paysonPaymentUpdateURL;
-        //----------------------------------------------------------------
+        
         if ($res->fields['invoice_status'] == 'ORDERCREATED') {
             switch ($newstatus) {
                 case MODULE_PAYMENT_PAYSON_INV_DELIVERED_STATUS_ID:

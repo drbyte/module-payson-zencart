@@ -62,12 +62,8 @@ $paysonShop['SV']['inv_paysonreference_ps'] ='Payson Faktura Refnr: ';
 
 
 //admin texts,
-$paysonAdmin['EN']['text_admin_title'] = "Payson New API";
-$paysonAdmin['SV']['text_admin_title'] = "Payson Nytt API";
-
-$paysonAdmin['EN']['inv_text_admin_title'] = "Payson Invoice New API";
-$paysonAdmin['SV']['inv_text_admin_title'] = "Payson Faktura Nytt API";
-
+$paysonAdmin['EN']['text_admin_title'] = "Payson Direct and Invoice";
+$paysonAdmin['SV']['text_admin_title'] = "Payson Direkt & Faktura";
 
 $paysonAdmin['EN']['text_catalog_title'] = "Payson";
 $paysonAdmin['SV']['text_catalog_title'] = "Payson";
@@ -138,10 +134,13 @@ $paysonAdmin['EN']['md5key_text'] = 'MD5 Key for your Payson account.';
 $paysonAdmin['SV']['md5key_head'] = 'MD5nyckel';
 $paysonAdmin['SV']['md5key_text'] = 'MD5nyckel f&oumlr ditt Paysonkonto';
 
-$paysonAdmin['EN']['paymentmethods_head'] = 'Payment methods';
-$paysonAdmin['EN']['paymentmethods_text'] = 'Whether all or some Payment Methods should be available at Payson';
-$paysonAdmin['SV']['paymentmethods_head'] = 'Betalningsm&oumljligheter';
-$paysonAdmin['SV']['paymentmethods_text'] = 'Om alla eller endast ett urval av betalningsm&oumljligheter skall erbjudas hos Payson';
+$paysonAdmin['EN']['paymentmethods_head'] = 'Payson direct methods';
+$paysonAdmin['EN']['paymentmethods_text'] = 'Whether Payson directs method should be available in checkout';
+$paysonAdmin['SV']['paymentmethods_head'] = 'Betalningsm&oumljligheter - Payson direkt';
+$paysonAdmin['SV']['paymentmethods_text'] = 'Ange om kund ska kunna betala med kort, bank eller båda';
+
+$paysonAdmin['EN']['paymentmethods_disabled'] = 'Disabled';
+$paysonAdmin['SV']['paymentmethods_disabled'] = 'Inaktiverat';
 
 $paysonAdmin['EN']['paymentmethods_all'] = 'All';
 $paysonAdmin['SV']['paymentmethods_all'] = 'Alla';
