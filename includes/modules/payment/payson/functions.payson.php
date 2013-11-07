@@ -9,7 +9,7 @@ function _paysonGetHeaderData($userid, $md5key, $moduleversion) {
     $headerdata = array('PAYSON-SECURITY-USERID: ' . $userid,
         'PAYSON-SECURITY-PASSWORD: ' . $md5key,
         'PAYSON-APPLICATION-ID: ' . $moduleversion,
-        'PAYSON-MODULE-INFO: payson_zencart|' . $module_vesion[2] . '|' . getVersionPS());
+        'PAYSON-MODULE-INFO: payson_zencart|' . $module_vesion[2] . '|' . PROJECT_VERSION_MAJOR . '.' . PROJECT_VERSION_MINOR);
     return $headerdata;
 }
 
@@ -35,7 +35,7 @@ function paysonGetShopLanguage($lang) {
     return $localeCode;
 }
 
-function paysonGetPaysonResults($res) {
+function parsePaymentDetailsResponse($res) {
     /*
       echo "localdata ";
       print_r($local_data);
@@ -53,11 +53,11 @@ function paysonGetPaysonResults($res) {
         list($tag, $val) = explode("=", $res_arr[$i]);
         switch ($tag) {
             case 'status':
-                $payment_status_val = $val;
+                $paymentResults['status'] = $val;
                 break;
 
             case 'invoiceStatus':
-                $invoice_status_val = $val;
+                $paymentResults['invoiceStatus'] = urldecode($val);
                 break;
 
             case 'receiverList.receiver(0).amount':
@@ -73,61 +73,30 @@ function paysonGetPaysonResults($res) {
                 break;
 
             case 'purchaseId':
-                $purchaseId_val = $val;
+                $paymentResults['purchaseId'] = urldecode($val);
                 break;
 
             case 'type':
-                $type_val = $val;
+                $paymentResults['type'] = urldecode($val);
                 break;
-
-            default :
-            //nothing
-        }
-        $i++;
-    }
-
-    
-    $paymentResults['status'] = $payment_status_val;
-        
-    //---------- get paysonreference------------------
-    $paymentResults['purchaseId'] = $purchaseId_val;
-    //----------- get payment type ----------------------
-    $paymentResults['type'] = $type_val;
-    //------------ get possible invoice status---------------
-    if (isset($invoice_status_val)) {
-        $paymentResults['invoice_status'] = $invoice_status_val;
-    }
-    
-    return $paymentResults;
-}
-
-function paysonGetShippingAddress($res) {
-    $res_arr = array();
-    $res_arr = explode("&", $res);
-
-    //find interesting keys
-    $i = 0;
-    while ($i < sizeof($res_arr)) {
-        list($tag, $val) = explode("=", $res_arr[$i]);
-        switch ($tag) {
             case 'shippingAddress.name':
-                $shippingAddress['name'] = urldecode($val);
+                $paymentResults['name'] = urldecode($val);
                 break;
 
             case 'shippingAddress.streetAddress':
-                $shippingAddress['streetAddress'] = urldecode($val);
+                $paymentResults['streetAddress'] = urldecode($val);
                 break;
 
             case 'shippingAddress.postalCode':
-                $shippingAddress['postalCode'] = urldecode($val);
+                $paymentResults['postalCode'] = urldecode($val);
                 break;
 
             case 'shippingAddress.city':
-                $shippingAddress['city'] = urldecode($val);
+                $paymentResults['city'] = urldecode($val);
                 break;
 
             case 'shippingAddress.country':
-                $shippingAddress['country'] = urldecode($val);
+                $paymentResults['country'] = urldecode($val);
                 break;
 
             default :
@@ -135,7 +104,8 @@ function paysonGetShippingAddress($res) {
         }
         $i++;
     }
-    return $shippingAddress;
+     
+    return $paymentResults;
 }
 
 function paysonValidateIpnMessage($userid, $md5key, $moduleversion, $url, $message) {
@@ -255,10 +225,6 @@ function paysonTokenRequest($userid, $md5key, $moduleversion, $url, $postdata, $
     //amount
     $postdata2 .= "&receiverList.receiver(0).amount=" . $rc_amount;
 
-    //   $asdf =  print_r($orderitemslist, true);
-    // echo $asdf;
-    // die();
-    //$orderitemslist
     if ($processOrderList == true) {
         if (sizeof($orderitemslist) > 0) {
             $i = 0;
@@ -416,7 +382,7 @@ function getVersionPS() {
         return 'NONE';
     }
 }
-    
+
 function paysonCreatePaytransTableQuery($table_name) {
     return " CREATE TABLE IF NOT EXISTS " . $table_name . " (
           `payson_paytrans_id` int(11) unsigned NOT NULL auto_increment,

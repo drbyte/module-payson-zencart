@@ -45,8 +45,8 @@ $paysonShop['EN']['order_id_from_text_short'] = 'Order: %s';
 $paysonShop['SV']['order_id_from_text_short'] = 'Order: %s';
 
 
-$paysonShop['EN']['mailtext_paysonreference'] = 'Payment Approved by Payson with Referece Number';
-$paysonShop['SV']['mailtext_paysonreference'] = 'Betalning har genomf&oumlrts via Payson med Referensnummer';
+$paysonShop['EN']['mailtext_paysonreference'] = 'Payment approved by Payson with referece number';
+$paysonShop['SV']['mailtext_paysonreference'] = 'Betalning har genomförts via Payson med referensnummer';
 
 $paysonShop['EN']['inv_mailtext_paysonreference'] ='PDF Invoice is sent from Payson upon delivery. Reference Number';
 $paysonShop['SV']['inv_mailtext_paysonreference'] ='PDF-Faktura fr&aring;n Payson skickas n&auml;r varorna skickats. Referensnummer';

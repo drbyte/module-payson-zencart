@@ -50,6 +50,7 @@ class payson extends base {
     var $invoiceEnabled;
     var $directEnabled;
     var $isInvoicePayment;
+    var $tableForPaysonData;
 
     /**
      * constructor
@@ -62,8 +63,10 @@ class payson extends base {
 
         global $order;
         $this->code = 'payson';
-        $this->codeVersion = '1.3.9';
+        $this->codeVersion = PROJECT_VERSION_MAJOR . '.' . PROJECT_VERSION_MINOR;
         $this->paysonModuleVersion = 'PAYSON-ZENCART-2.0';
+
+        $this->tableForPaysonData = DB_PREFIX . $paysonDbTablePaytrans;
 
         $this->invoiceEnabled = false;
         $this->directEnabled = false;
@@ -97,7 +100,7 @@ class payson extends base {
         $paysonDirectMethodsSelected = MODULE_PAYMENT_PAYSON_PAYMETHOD_ITEMS;
 
         if ($paysonDirectSetting != "Disabled") {
-            
+
             $this->directEnabled = true;
 
             if ($paysonDirectSetting == "Check boxes below" && $paysonDirectMethodsSelected == "--none--")
@@ -108,13 +111,6 @@ class payson extends base {
             $this->update_status();
         }
 
-        $this->form_action_url = $paysonBrowserPostURL;
-
-        if (PROJECT_VERSION_MAJOR != '1' && substr(PROJECT_VERSION_MINOR, 0, 3) != '3.9') {
-            $this->enabled = false;
-        }
-
-        //check currency and do not present payment option if currency is not supported
         if (!in_array(strtoupper($_SESSION['currency']), $paysonCurrenciesSupported) || $_SESSION['currency'] == '') {
             $this->enabled = false;
             $this->invoiceEnabled = false;
@@ -124,10 +120,71 @@ class payson extends base {
 
         if (!($this->directEnabled || $this->invoiceEnabled ))
             $this->enabled = false;
+
+        $this->form_action_url = $paysonBrowserPostURL;
     }
 
     function getApplicationVersion() {
         return $this->paysonModuleVersion;
+    }
+
+    /**
+     * Displays payment method name along with Credit Card Information Submission Fields (if any) on the Checkout Payment Page
+     *
+     * @return array
+     */
+    function selection() {
+
+        global $order;
+        include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
+
+        $fieldsArray = array();
+
+        $currentPaymentMethod = $_SESSION['payment'];
+
+        $isInvoiceSelected = $currentPaymentMethod == "payson" && $this->isInvoicePayment;
+
+        if ($this->directEnabled)
+            $fieldsArray[] = array("title" => MODULE_PAYMENT_PAYSON_TEXT_CATALOG_LOGO, "field" => zen_draw_radio_field("payson-method", 'payson-card-bank', !$isInvoiceSelected, 'id="payson-card-bank" onclick="document.getElementById(\'pmt-payson\').checked = checked;"'), 'tag' => "payson-card-bank");
+
+        $invoiceAmountLimit = $paysonInvoiceMinimalOrderValue;
+
+        if ($this->invoiceEnabled && $order->info['total'] * $order->info['currency_value'] > $invoiceAmountLimit) {
+            $fieldsArray[] = array("title" => MODULE_PAYMENT_PAYSON_INV_TEXT_CATALOG_LOGO, "field" => zen_draw_radio_field("payson-method", 'payson-invoice', $isInvoiceSelected, 'id="payson-invoice" onclick="document.getElementById(\'pmt-payson\').checked = checked;"'), 'tag' => "payson-invoice");
+        }
+
+        if (sizeof($fieldsArray) == 1) {
+            $moduleData = array();
+
+            $moduleData = array('id' => $this->code, 'module' => $fieldsArray[0]['title']);
+
+            if ($this->invoiceEnabled) {
+                $invoiceModuleFieldData = array();
+                $invoiceModuleFieldData[] = array('field' => zen_draw_hidden_field('payson-method', 'payson-invoice'));
+
+                $moduleData['fields'] = $invoiceModuleFieldData;
+            }
+
+            return $moduleData;
+        }
+
+        $methods = array('id' => $this->code,
+            'module' => "Payson",
+            'fields' => $fieldsArray
+        );
+
+
+        return $methods;
+    }
+
+    /**
+     * JS validation which does error-checking of data-entry if this module is selected for use
+     * (Number, Owner, and CVV Lengths)
+     *
+     * @return string
+     */
+    function javascript_validation() {
+        return false;
     }
 
     /**
@@ -159,50 +216,6 @@ class payson extends base {
     }
 
     /**
-     * JS validation which does error-checking of data-entry if this module is selected for use
-     * (Number, Owner, and CVV Lengths)
-     *
-     * @return string
-     */
-    function javascript_validation() {
-        return false;
-    }
-
-    /**
-     * Displays payment method name along with Credit Card Information Submission Fields (if any) on the Checkout Payment Page
-     *
-     * @return array
-     */
-    function selection() {
-
-        global $order;
-        include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
-
-        $fieldsArray = array();
-
-        $currentPaymentMethod = $_SESSION['payment'];
-
-        $isInvoiceSelected = $currentPaymentMethod == "payson" && $this->isInvoicePayment;
-
-        if ($this->directEnabled)
-            $fieldsArray[] = array("title" => MODULE_PAYMENT_PAYSON_TEXT_CATALOG_LOGO, "field" => zen_draw_radio_field("payson-method", 'payson-card-bank', !$isInvoiceSelected, 'id="payson-card-bank" onclick="document.getElementById(\'pmt-payson\').checked = checked;"'), 'tag' => "payson-card-bank");
-        
-        $invoiceAmountLimit = $paysonInvoiceMinimalOrderValue;
-        if ($this->invoiceEnabled && $order->info['total'] * $order->info['currency_value'] > $invoiceAmountLimit) {
-
-            $fieldsArray[] = array("title" => MODULE_PAYMENT_PAYSON_INV_TEXT_CATALOG_LOGO, "field" => zen_draw_radio_field("payson-method", 'payson-invoice', $isInvoiceSelected, 'id="payson-invoice" onclick="document.getElementById(\'pmt-payson\').checked = checked;"'), 'tag' => "payson-invoice");
-        }
-
-        $methods = array('id' => $this->code,
-            'module' => "Payson",
-            'fields' => $fieldsArray
-        );
-
-
-        return $methods;
-    }
-
-    /**
      * Normally evaluates the Credit Card Type for acceptance and the validity of the Credit Card Number & Expiration Date
      * Since payson module is not collecting info, it simply skips this step.
      *
@@ -213,159 +226,56 @@ class payson extends base {
         include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
 
         global $db, $order, $currencies, $currency, $messageStack;
-
-        //0 determine currency, language, amount and get an temporary trackingid
-        $localeCode = $this->_getLanguageCode();
+        
+        $now = date("Y-m-d H:i:s");
+        $localeCode = $this->getLanguageCodeForPayson();
         $currencyCode = strtoupper($_SESSION['currency']);
         $trackingId = time();
 
-        $now = date("Y-m-d H:i:s");
-        $paysonTable = DB_PREFIX . $paysonDbTablePaytrans;
-        $paysonEvents = DB_PREFIX . $paysonDbTableEvents;
+        $postData = $this->getStaticPostData();
 
-        //1 prepare and call paysonTokenRequest()
+        $postData['localeCode'] = $localeCode;
+        $postData['currencyCode'] = $currencyCode;
+        $postData['memo'] = sprintf(MODULE_PAYMENT_PAYSON_PURCHASE_DESCRIPTION_TITLE, $trackingId);
+        $postData['trackingId'] = $trackingId;
+        $postData['senderEmail'] = $order->customer['email_address'];
+        $postData['senderFirstName'] = $order->customer['firstname'];
+        $postData['senderLastName'] = $order->customer['lastname'];
 
-        $postdata['returnUrl'] = zen_href_link(FILENAME_CHECKOUT_PROCESS, '', 'SSL', true, false);
-        $postdata['cancelUrl'] = zen_href_link(FILENAME_CHECKOUT_PROCESS, '', 'SSL', true, false);
-        $postdata['ipnNotificationUrl'] = zen_href_link('ipn_payson.php?mode=payson', '', 'SSL', true, false, true, true);
-        $postdata['localeCode'] = $localeCode;
-        $postdata['currencyCode'] = $currencyCode;
-        //write trackingId into end customers payment info
-        $postdata['memo'] = sprintf(MODULE_PAYMENT_PAYSON_PURCHASE_DESCRIPTION_TITLE, $trackingId);
+        $totalAmount = 0;
+        $orderItemList = array();
 
-        $postdata['custom'] = MODULE_PAYMENT_PAYSON_CUSTOM;
-        $postdata['trackingId'] = $trackingId;
-        $postdata['guaranteeOffered'] = MODULE_PAYMENT_PAYSON_GUARANTEE_OFFERED;
-        $postdata['senderEmail'] = $order->customer['email_address'];
-        $postdata['senderFirstName'] = $order->customer['firstname'];
-        $postdata['senderLastName'] = $order->customer['lastname'];
-        $postdata['receiverEmail'] = MODULE_PAYMENT_PAYSON_SELLER_EMAIL;
+        $this->setProductOrderList($order, $orderItemList, $totalAmount);
 
-        //make order items list
-        $orderitemslist = array();
-        $n = sizeof($order->products);
+        $this->setCouponOrderList($order, $orderItemList, $totalAmount);
 
-        // First all order items
-        for ($i = 0; $i < $n; $i++) {
-            $price_without_tax = $order->products[$i]['final_price'] * $order->info['currency_value'];
-            $taxPercentage = ($order->products[$i]['tax'] / 100);
+        $this->setShippingOrderList($order, $orderItemList, $totalAmount);
 
-            $orderitemslist[] = array(
-                'description' => $order->products[$i]['name'],
-                'sku' => zen_get_prid($order->products[$i]['id']),
-                'quantity' => $order->products[$i]['qty'],
-                'unitPrice' => number_format($price_without_tax, 2, '.', ''),
-                'taxPercentage' => $taxPercentage,
-            );
-
-            $total_amount += number_format(number_format($price_without_tax, 2, '.', '') * (1 + $taxPercentage) * $order->products[$i]['qty'], 2, '.', '');
-        }
-
-        //check for coupons----------------------------------   
-        $coupon = 0;
-
-        if (isset($order->info['coupon_code'])) {
-            $couponQuery = $db->execute("select * from " . TABLE_COUPONS . " where coupon_code='" . $order->info['coupon_code'] . "' AND coupon_active='Y' ");
-
-            if ($couponQuery->RecordCount() == 1) {
-                $coupon = $couponQuery->fields['coupon_amount'] * $order->info['currency_value'];
-                $coupon_id = $couponQuery->fields['coupon_id'];
-            }
-        }
-
-        if ($coupon > 0) {
-            $couponDescQuery = $db->execute("select * from " . TABLE_COUPONS_DESCRIPTION . " where coupon_id=" . $coupon_id . " AND language_id=" . $_SESSION['languages_id']);
-            $couponDescription = $couponDescQuery->fields['coupon_description'];
-            $taxPercentage = zen_get_tax_rate(MODULE_PAYMENT_PAYSON_TAX_CLASS, $order->billing['country']['id'], $order->billing['zone_id']) / 100;
-
-            $price_without_tax = ($coupon / (1 + $taxPercentage));
-
-            $orderitemslist[] = array(
-                'description' => $couponDescription,
-                'sku' => $coupon_id,
-                'quantity' => 1,
-                'unitPrice' => number_format(-1 * $price_without_tax, 2, '.', ''),
-                'taxPercentage' => number_format($taxPercentage, 2, '.', ''),
-            );
-
-            // Negative amount!
-            $total_amount += number_format(-1 * $coupon, 2, '.', ',');
-        }
-
-        if (zen_not_null($order->info['shipping_method'])) {
-            $shipping_module = substr($_SESSION['shipping']['id'], 0, strpos($_SESSION['shipping']['id'], '_'));
-            $shipping_tax_percentage = zen_get_tax_rate($GLOBALS[$shipping_module]->tax_class, $order->billing['country']['id'], $order->billing['zone_id']) / 100;
-            $shipping_price_without_tax = $order->info['shipping_cost'] * $order->info['currency_value'];
-
-            if (DISPLAY_PRICE_WITH_TAX == 'true') {
-                $shipping_price_without_tax = ($shipping_price_without_tax / (1 + $shipping_tax_percentage));
-            }
-
-            $orderitemslist[] = array(
-                'description' => $order->info['shipping_method'],
-                'sku' => 9998,
-                'quantity' => 1,
-                'unitPrice' => number_format($shipping_price_without_tax, 2, '.', ''),
-                'taxPercentage' => $shipping_tax_percentage,
-            );
-
-            $total_amount += number_format($shipping_price_without_tax * (1 + $shipping_tax_percentage), 2, '.', '');
-        }
-
-        //check for invoice fee
         if ($this->isInvoicePayment) {
-            $fee = 0;
-            $check_query = $db->Execute("select configuration_value from " . TABLE_CONFIGURATION . " where configuration_key = 'MODULE_PAYSON_INV_FEE_STATUS'");
-            if ($check_query->RecordCount() == 1) {
-                $usefee = $check_query->fields['configuration_value'];
-                if ($usefee) {
-                    $fee_query = $db->Execute("select configuration_value from " . TABLE_CONFIGURATION . " where configuration_key = 'MODULE_PAYSON_INV_FEE_FEE'");
-                    $fee = $fee_query->fields['configuration_value'] * $order->info['currency_value'];
-
-                    $fee_tax_query = $db->Execute("select configuration_value from " . TABLE_CONFIGURATION . " where configuration_key = 'MODULE_PAYSON_INV_FEE_TAX_CLASS'");
-                    $fee_tax_class = $fee_tax_query->fields['configuration_value'];
-
-                    $taxPercentage = zen_get_tax_rate($fee_tax_class, $order->billing['country']['id'], $order->billing['zone_id']) / 100;
-
-                    $fee = $fee * (1 + $taxPercentage);
-                }
-            }
-
-            if ($fee > 0) {
-                $postdata['invoiceFee'] = number_format($fee, 2, '.', ',');
-                $total_amount += number_format($fee, 2, '.', ',');
-            }
+            $this->addInvoiceFeeToPaysonData($order, $totalAmount, $postData);
         }
 
-        $postdata['amount'] = $total_amount;
+        $postData['amount'] = $totalAmount;
 
-        $db->Execute(" INSERT INTO " . $paysonTable . " SET 
+        $db->Execute(" INSERT INTO " . $this->tableForPaysonData . " SET 
                              trackingId     = " . $trackingId . ",
                              customers_id   = " . (int) $_SESSION['customer_id'] . ",
-                             amount         = " . $total_amount . ",
+                             amount         = " . $totalAmount . ",
                              currency       = '" . $currencyCode . "',
                              lang           = '" . $localeCode . "',
                              created        = '" . $now . "' ");
-
-
-
-        //get default setting for fees
+        
         $defaults['feesPayer'] = $paysonFeesPayerSupported[1];
 
         if ($this->isInvoicePayment) {
-            $postdata['fundingList'] = 'INVOICE';
+            $postData['fundingList'] = 'INVOICE';
         } else if (MODULE_PAYMENT_PAYSON_PAYMETHOD == 'ALL') {
-            $postdata['fundingList'] = 'ALL';
+            $postData['fundingList'] = 'ALL';
         } else {
-            $postdata['fundingList'] = explode(",", MODULE_PAYMENT_PAYSON_PAYMETHOD_ITEMS);
+            $postData['fundingList'] = explode(",", MODULE_PAYMENT_PAYSON_PAYMETHOD_ITEMS);
         }
 
-        foreach ($orderitemslist as $key => &$orderItem) {
-            $orderItem['description'] = urlencode($orderItem['description']);
-        }
-        $paysonTokenResponse = paysonTokenRequest(MODULE_PAYMENT_PAYSON_BUSINESS_ID, MODULE_PAYMENT_PAYSON_MD5KEY, $this->paysonModuleVersion, $paysonTokenRequestURL, $postdata, $orderitemslist, $defaults, true);
-
-
+        $paysonTokenResponse = paysonTokenRequest(MODULE_PAYMENT_PAYSON_BUSINESS_ID, MODULE_PAYMENT_PAYSON_MD5KEY, $this->paysonModuleVersion, $paysonTokenRequestURL, $postData, $orderItemList, $defaults, true);
 
         //2 validate response
         $paysonTokenResponseValid = paysonTokenResponseValidate($paysonTokenResponse);
@@ -373,7 +283,7 @@ class payson extends base {
             $paysonToken = paysonGetToken($paysonTokenResponse);
 
             //uppdate table payson_paytrans
-            $db->Execute(" UPDATE " . $paysonTable . " SET 
+            $db->Execute(" UPDATE " . $this->tableForPaysonData . " SET 
 		                token              = '" . $paysonToken['TOKEN'] . "',
                                 curl_ack           = '" . $paysonToken['ack'] . "',
                                 curl_timestamp     = '" . $paysonToken['timestamp'] . "',
@@ -385,14 +295,14 @@ class payson extends base {
             $this->form_action_url = $paysonBrowserPostURL . "?token=" . $paysonToken['TOKEN'];
         } else {
             //bad response, redirect to payment selection page
-            zen_mail(STORE_OWNER, STORE_OWNER_EMAIL_ADDRESS, 'Log from Payson Module::paysonTokenRequest', "Data: \r\n" . str_replace("&", "\r\n", http_build_query($postdata)) .
-                    "\r\n\r\nOrder Items: \r\n" . str_replace("&", "\r\n", http_build_query($orderitemslist)) .
+            zen_mail(STORE_OWNER, STORE_OWNER_EMAIL_ADDRESS, 'Log from Payson Module::paysonTokenRequest', "Data: \r\n" . str_replace("&", "\r\n", http_build_query($postData)) .
+                    "\r\n\r\nOrder Items: \r\n" . str_replace("&", "\r\n", http_build_query($orderItemList)) .
                     "\r\n\r\n\r\n Response: \r\n" . str_replace("&", "\r\n", $paysonTokenResponse), STORE_OWNER, STORE_OWNER_EMAIL_ADDRESS, "", 'debug');
 
             $badResponse = paysonGetBadResponse($paysonTokenResponse);
 
             //update table payson_paytrans
-            $db->Execute(" UPDATE " . $paysonTable . " SET curl_ack = '" . $badResponse['ack'] . "',
+            $db->Execute(" UPDATE " . $this->tableForPaysonData . " SET curl_ack = '" . $badResponse['ack'] . "',
                                      curl_timestamp     = '" . $badResponse['timestamp'] . "',
                                      curl_correlationId = '" . $badResponse['correlationId'] . "',
                                      curl_errorId       = '" . $badResponse['errorId'] . "',
@@ -429,98 +339,50 @@ class payson extends base {
     }
 
     /**
-     * Determine the language to use inc fallback
-     */
-    function _getLanguageCode() {
-        include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
-        if (in_array(strtoupper($_SESSION['languages_code']), $paysonLanguagesSupported)) {
-            //some of the supported languages
-            $lang_code = strtoupper($_SESSION['languages_code']);
-        } else if (strtoupper($_SESSION['languages_code']) == 'SE') {
-            //possible wrong notation for swedish
-            $lang_code = 'SV';
-        } else {
-            //could be anything, use english at Payson
-            $lang_code = 'EN';
-        }
-        return $lang_code;
-    }
-
-    /**
      * Store transaction info to the order and process any results that come back from the payment gateway
      */
     function before_process() {
-        global $db, $order, $_GET;
 
-        if (isset($_GET['TOKEN']))
-            $token = $_GET['TOKEN'];
-        else
-            $token = $_SESSION['paysonToken'];
-
-        $token = zen_db_prepare_input($token);
 
         include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
 
-        $paysonTable = DB_PREFIX . $paysonDbTablePaytrans;
-        $paysonEvents = DB_PREFIX . $paysonDbTableEvents;
+        global $db, $order;
+
+        $token = $this->getDBSafeToken();
 
         if (strlen($token) < 20) {
-            //to short or no token
-            zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
-        }
-        //get db id out of token
-        $res = $db->Execute(" SELECT * FROM " . $paysonTable . " WHERE token='" . $token . "'");
-
-        if ($res->RecordCount() == 0) {
-            //token not found
             zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
         }
 
-        // If we have a order id then this order has already been created by a IPN call
-        if ($res->fields['orders_id'])
-            zen_redirect(zen_href_link(FILENAME_CHECKOUT_SUCCESS, (isset($_GET['action']) && $_GET['action'] == 'confirm' ? 'action=confirm' : ''), 'SSL'));
+        $orderData = $this->getOrderDataFromToken($token);
 
-        $trackingId = $res->fields['trackingId'];
+        $paymentDetailsResponse = paysonGetPaymentDetails(MODULE_PAYMENT_PAYSON_BUSINESS_ID, MODULE_PAYMENT_PAYSON_MD5KEY, $this->paysonModuleVersion, $paysonPaymentDetailsURL, $token);
 
+        $paymentDetailsData = parsePaymentDetailsResponse($paymentDetailsResponse);
 
-        $res = paysonGetPaymentDetails(MODULE_PAYMENT_PAYSON_BUSINESS_ID, MODULE_PAYMENT_PAYSON_MD5KEY, $this->paysonModuleVersion, $paysonPaymentDetailsURL, $token);
-
-        $paymentResults = paysonGetPaysonResults($res);
-
-        switch ($paymentResults['status']) {
+        switch ($paymentDetailsData['status']) {
             case 'COMPLETED':
             case 'PENDING':
-                $db->Execute(" UPDATE " . $paysonTable . " SET 
-                                  payson_status='" . $paymentResults['status'] . "',
-                                  payson_type='" . $paymentResults['type'] . "',
-                                  payson_reference=" . $paymentResults['purchaseId'] . ",
-                                  invoice_status='" . $paymentResults['invoice_status'] . "'
-                                  WHERE trackingId=" . $trackingId);
+                $db->Execute(" UPDATE " . $this->tableForPaysonData . " SET 
+                                  payson_status='" . $paymentDetailsData['status'] . "',
+                                  payson_type='" . $paymentDetailsData['type'] . "',
+                                  payson_reference=" . $paymentDetailsData['purchaseId'] . ",
+                                  invoice_status='" . $paymentDetailsData['invoiceStatus'] . "'
+                                  WHERE trackingId=" . $db->prepare_input($orderData['trackingId']));
                 break;
 
             default :
-                // CANCEL or non approved
-                $db->Execute(" UPDATE " . $paysonTable . " SET payson_status='" . $paymentResults['status'] . "' WHERE token='" . $token . "'");
+                $db->Execute(" UPDATE " . $this->tableForPaysonData . " SET payson_status='" . $paymentDetailsData['status'] . "' WHERE token='" . $token . "'");
                 zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
         }
 
         //since this in an invoice, we need to force update shippingadress
         if ($this->isInvoicePayment) {
-            $shippingAddress = paysonGetShippingAddress($res);
-            $order->delivery['firstname'] = $shippingAddress['name'];
-            $order->delivery['lastname'] = '';
-            $order->delivery['street_address'] = $shippingAddress['streetAddress'];
-            $order->delivery['city'] = $shippingAddress['city'];
-            $order->delivery['postcode'] = $shippingAddress['postalCode'];
-            $order->delivery['country']['title'] = $shippingAddress['country'];
+            $this->updateShippingAdressForInvoicePayment($paymentDetailsData, $order);
         }
 
-        $add_comments = MODULE_PAYMENT_PAYSON_TEXT_PAYSONREF;
-        $add_comments .= ": ";
-        $add_comments .= $paymentResults['purchaseId'];
-        $new_comments = $order->info['comments'];
-        $new_comments .= $add_comments;
-        $order->info['comments'] = $new_comments;
+        $this->appendCommentsToOrder($order, $paymentDetailsData['purchaseId']);
+
 
         return true;
     }
@@ -528,25 +390,9 @@ class payson extends base {
     function after_order_create($zf_order_id) {
         global $db;
 
-        if (isset($_GET['TOKEN']))
-            $token = $_GET['TOKEN'];
-        else
-            $token = $_SESSION['paysonToken'];
-
         include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
 
-        $paysonTable = DB_PREFIX . $paysonDbTablePaytrans;
-        $db->Execute(" UPDATE " . $paysonTable . " SET orders_id=" . $zf_order_id . " WHERE token='" . $token . "'");
-    }
-
-    /**
-     * Checks referrer
-     *
-     * @param string $zf_domain
-     * @return boolean
-     */
-    function check_referrer($zf_domain) {
-        return true;
+        $db->Execute("UPDATE " . $this->tableForPaysonData . " SET orders_id=" . $zf_order_id . " WHERE token='" . $this->getDBSafeToken() . "'");
     }
 
     /**
@@ -556,6 +402,16 @@ class payson extends base {
      * @return boolean
      */
     function after_process() {
+        return true;
+    }
+
+    /**
+     * Checks referrer
+     *
+     * @param string $zf_domain
+     * @return boolean
+     */
+    function check_referrer($zf_domain) {
         return true;
     }
 
@@ -597,9 +453,9 @@ class payson extends base {
         } else {
             include( DIR_FS_CATALOG . 'includes/languages/' . $_SESSION['language'] . '/modules/payment/payson.php');
         }
-        $paysonTable = DB_PREFIX . $paysonDbTablePaytrans;
 
-        $db->Execute(paysonCreatePaytransTableQuery($paysonTable));
+
+        $db->Execute(paysonCreatePaytransTableQuery($this->tableForPaysonData));
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_PAYSON_ENABLE_TEXT . "', 'MODULE_PAYMENT_PAYSON_STATUS', 'True', '" . MODULE_PAYMENT_PAYSON_ACCEPT_TEXT . "', '6', '0', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
 
@@ -648,12 +504,11 @@ class payson extends base {
         global $db;
         include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
 
-        $paysonTable = DB_PREFIX . $paysonDbTablePaytrans;
         $paysonEvents = DB_PREFIX . $paysonDbTableEvents;
 
         $db->Execute("delete from " . TABLE_CONFIGURATION . " where configuration_key LIKE 'MODULE\_PAYMENT\_PAYSON\_%'");
 
-        $db->Execute("drop table if exists " . $paysonTable);
+        $db->Execute("drop table if exists " . $this->tableForPaysonData);
         $db->Execute("drop table if exists " . $paysonEvents);
 
         $this->notify('NOTIFY_PAYMENT_PAYSON_UNINSTALLED');
@@ -688,19 +543,208 @@ class payson extends base {
         return $keys_list;
     }
 
+    private function updateShippingAdressForInvoicePayment($paymentDetailsData, $order) {
+        $order->delivery['firstname'] = $paymentDetailsData['name'];
+        $order->delivery['lastname'] = '';
+        $order->delivery['street_address'] = $paymentDetailsData['streetAddress'];
+        $order->delivery['city'] = $paymentDetailsData['city'];
+        $order->delivery['postcode'] = $paymentDetailsData['postalCode'];
+        $order->delivery['country']['title'] = $paymentDetailsData['country'];
+    }
+
+    private function appendCommentsToOrder($order, $purchaseId) {
+        $add_comments = MODULE_PAYMENT_PAYSON_TEXT_PAYSONREF;
+        $add_comments .= ": ";
+        $add_comments .= $purchaseId;
+        $new_comments = $order->info['comments'];
+        $new_comments .= $add_comments;
+        $order->info['comments'] = $new_comments;
+    }
+
+    private function getOrderDataFromToken($token) {
+
+        global $db;
+
+        $res = $db->Execute(" SELECT * FROM " . $this->tableForPaysonData . " WHERE token='" . $token . "'");
+
+        if ($res->RecordCount() == 0) {
+            //token not found
+            zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
+        }
+
+        // If we have a order id then this order has already been created by a IPN call
+        if ($res->fields['orders_id']) {
+            $_SESSION['cart']->reset(true);
+            zen_redirect(zen_href_link(FILENAME_CHECKOUT_SUCCESS, (isset($_GET['action']) && $_GET['action'] == 'confirm' ? 'action=confirm' : ''), 'SSL'));
+        }
+        return $res->fields;
+    }
+
+    private function getDBSafeToken() {
+        if (isset($_GET['TOKEN']))
+            $token = $_GET['TOKEN'];
+        else
+            $token = $_SESSION['paysonToken'];
+
+        $token = zen_db_prepare_input($token);
+
+        return $token;
+    }
+
+    private function setProductOrderList($order, &$orderItemList, &$totalAmount) {
+
+        $n = sizeof($order->products);
+
+        // First all order items
+        for ($i = 0; $i < $n; $i++) {
+            $price_without_tax = $order->products[$i]['final_price'] * $order->info['currency_value'];
+            $taxPercentage = ($order->products[$i]['tax'] / 100);
+
+            $orderItemList[] = array(
+                'description' => urlencode($order->products[$i]['name']),
+                'sku' => zen_get_prid($order->products[$i]['id']),
+                'quantity' => $order->products[$i]['qty'],
+                'unitPrice' => number_format($price_without_tax, 2, '.', ''),
+                'taxPercentage' => $taxPercentage,
+            );
+
+            $totalAmount += number_format(number_format($price_without_tax, 2, '.', '') * (1 + $taxPercentage) * $order->products[$i]['qty'], 2, '.', '');
+        }
+    }
+
+    private function setCouponOrderList($order, &$orderItemList, &$totalAmount) {
+
+        $couponAmount = 0;
+
+        if (isset($order->info['coupon_code'])) {
+            $couponQuery = $db->execute("select * from " . TABLE_COUPONS . " where coupon_code='" . $order->info['coupon_code'] . "' AND coupon_active='Y' ");
+
+            if ($couponQuery->RecordCount() == 1) {
+                $couponAmount = $couponQuery->fields['coupon_amount'] * $order->info['currency_value'];
+                $coupon_id = $couponQuery->fields['coupon_id'];
+            }
+        }
+
+        if ($couponAmount > 0) {
+            $couponDescQuery = $db->execute("select * from " . TABLE_COUPONS_DESCRIPTION . " where coupon_id=" . $coupon_id . " AND language_id=" . $_SESSION['languages_id']);
+            $couponDescription = $couponDescQuery->fields['coupon_description'];
+            $taxPercentage = zen_get_tax_rate(MODULE_PAYMENT_PAYSON_TAX_CLASS, $order->billing['country']['id'], $order->billing['zone_id']) / 100;
+
+            $price_without_tax = ($couponAmount / (1 + $taxPercentage));
+
+            $orderItemList[] = array(
+                'description' => urlencode($couponDescription),
+                'sku' => $coupon_id,
+                'quantity' => 1,
+                'unitPrice' => number_format(-1 * $price_without_tax, 2, '.', ''),
+                'taxPercentage' => number_format($taxPercentage, 2, '.', ''),
+            );
+
+
+            $couponAmount = number_format($couponAmount, 2, '.', ',');
+
+            if ($couponAmount < 0)
+                $couponAmount *= -1;
+
+            $total_amount -= $couponAmount;
+        }
+    }
+
+    private function setShippingOrderList($order, &$orderItemList, &$totalAmount) {
+
+
+
+        if (zen_not_null($order->info['shipping_method'])) {
+            $shipping_module = substr($_SESSION['shipping']['id'], 0, strpos($_SESSION['shipping']['id'], '_'));
+            $shipping_tax_percentage = zen_get_tax_rate($GLOBALS[$shipping_module]->tax_class, $order->billing['country']['id'], $order->billing['zone_id']) / 100;
+            $shipping_price_without_tax = $order->info['shipping_cost'] * $order->info['currency_value'];
+
+            if (DISPLAY_PRICE_WITH_TAX == 'true') {
+                $shipping_price_without_tax = ($shipping_price_without_tax / (1 + $shipping_tax_percentage));
+            }
+
+            $orderItemList[] = array(
+                'description' => urlencode($order->info['shipping_method']),
+                'sku' => 9998,
+                'quantity' => 1,
+                'unitPrice' => number_format($shipping_price_without_tax, 2, '.', ''),
+                'taxPercentage' => $shipping_tax_percentage,
+            );
+
+            $totalAmount += number_format($shipping_price_without_tax * (1 + $shipping_tax_percentage), 2, '.', '');
+        }
+    }
+
+    private function addInvoiceFeeToPaysonData($order, &$totalAmount, &$dataToSendToPayson) {
+
+        global $db;
+        $fee = 0;
+        $check_query = $db->Execute("select configuration_value from " . TABLE_CONFIGURATION . " where configuration_key = 'MODULE_PAYSON_INV_FEE_STATUS'");
+        if ($check_query->RecordCount() == 1) {
+            $usefee = $check_query->fields['configuration_value'];
+            if ($usefee) {
+                $fee_query = $db->Execute("select configuration_value from " . TABLE_CONFIGURATION . " where configuration_key = 'MODULE_PAYSON_INV_FEE_FEE'");
+                $fee = $fee_query->fields['configuration_value'] * $order->info['currency_value'];
+
+                $fee_tax_query = $db->Execute("select configuration_value from " . TABLE_CONFIGURATION . " where configuration_key = 'MODULE_PAYSON_INV_FEE_TAX_CLASS'");
+                $fee_tax_class = $fee_tax_query->fields['configuration_value'];
+
+                $taxPercentage = zen_get_tax_rate($fee_tax_class, $order->billing['country']['id'], $order->billing['zone_id']) / 100;
+
+                $fee = $fee * (1 + $taxPercentage);
+            }
+        }
+
+        $formattedFee = number_format($fee, 2, '.', ',');
+
+        if ($formattedFee > 0) {
+            $dataToSendToPayson['invoiceFee'] = $formattedFee;
+            $totalAmount += $formattedFee;
+        }
+    }
+
+    private function getStaticPostData() {
+        $postData = array();
+
+        $postData['returnUrl'] = zen_href_link(FILENAME_CHECKOUT_PROCESS, '', 'SSL', true, false) . '&payson-method=' . ($this->isInvoicePayment ? 'payson-invoice' : 'payson-card-bank');
+        $postData['cancelUrl'] = zen_href_link(FILENAME_CHECKOUT_PROCESS, '', 'SSL', true, false) . '&payson-method=' . ($this->isInvoicePayment ? 'payson-invoice' : 'payson-card-bank');
+        $postData['ipnNotificationUrl'] = zen_href_link('ipn_payson.php?mode=payson', '', 'SSL', true, false, true, true) . '&payson-method=' . ($this->isInvoicePayment ? 'payson-invoice' : 'payson-card-bank');
+        $postData['custom'] = MODULE_PAYMENT_PAYSON_CUSTOM;
+        $postData['guaranteeOffered'] = MODULE_PAYMENT_PAYSON_GUARANTEE_OFFERED;
+        $postData['receiverEmail'] = MODULE_PAYMENT_PAYSON_SELLER_EMAIL;
+
+        return $postData;
+    }
+
+    /**
+     * Determine the language to use inc fallback
+     */
+    private function getLanguageCodeForPayson() {
+        include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
+        if (in_array(strtoupper($_SESSION['languages_code']), $paysonLanguagesSupported)) {
+            //some of the supported languages
+            $lang_code = strtoupper($_SESSION['languages_code']);
+        } else if (strtoupper($_SESSION['languages_code']) == 'SE') {
+            //possible wrong notation for swedish
+            $lang_code = 'SV';
+        } else {
+            //could be anything, use english at Payson
+            $lang_code = 'EN';
+        }
+        return $lang_code;
+    }
+
     function _doStatusUpdate($oID, $newstatus, $comments, $customer_notified, $check_status_fields_orders_status) {
         global $db, $messageStack;
 
         $invoiceHandlingEnabled = MODULE_PAYMENT_PAYSON_INVOICE_MANAGE_BACKEND;
-        if ($$invoiceHandlingEnabled === "False")
+        if ($invoiceHandlingEnabled === "False")
             return;
 
         include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
 
-        $paysonTable = DB_PREFIX . $paysonDbTablePaytrans;
-
         //get the trackingid, ,paymenttype, invoicestatus and token for this orders_id
-        $res = $db->Execute(" SELECT * FROM " . $paysonTable . " WHERE payson_type='INVOICE' AND orders_id=" . $oID);
+        $res = $db->Execute(" SELECT * FROM " . $this->tableForPaysonData . " WHERE payson_type='INVOICE' AND orders_id=" . $oID);
         if ($res->RecordCount() == 0) {
             $messageStack->add_session(MODULE_PAYMENT_PAYSON_INV_NOSUCHORDER, 'error');
             return;
@@ -708,12 +752,12 @@ class payson extends base {
         $token = $res->fields['token'];
         $trackingId = $res->fields['trackingId'];
         $now = date("Y-m-d H:i:s");
-        
+
         $userid = MODULE_PAYMENT_PAYSON_BUSINESS_ID;
         $md5key = MODULE_PAYMENT_PAYSON_MD5KEY;
         $moduleversion = $this->paysonModuleVersion;
         $url = $paysonPaymentUpdateURL;
-        
+
         if ($res->fields['invoice_status'] == 'ORDERCREATED') {
             switch ($newstatus) {
                 case MODULE_PAYMENT_PAYSON_INV_DELIVERED_STATUS_ID:
@@ -752,7 +796,7 @@ class payson extends base {
             return;
         }
         //update paytrans with new invoice_status
-        $db->Execute(" UPDATE " . $paysonTable . " SET invoice_status='" . $new_invoice_status . "' WHERE orders_id=" . $oID);
+        $db->Execute(" UPDATE " . $this->tableForPaysonData . " SET invoice_status='" . $new_invoice_status . "' WHERE orders_id=" . $oID);
 
         $messageStack->add_session(MODULE_PAYMENT_PAYSON_INV_INVSTATUS_UPDATED_OK . $new_invoice_status, 'success');
         return true;

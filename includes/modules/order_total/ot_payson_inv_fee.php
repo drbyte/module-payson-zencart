@@ -31,7 +31,7 @@ class ot_payson_inv_fee {
 		if ($_SESSION['payment'] != "payson")
 			return;
                 
-                if($_SESSION['paysonIsInvoice'] === false)
+                if($_SESSION['paysonIsInvoice'] == false)
                     return;
 		 
 		$od_amount = MODULE_PAYSON_INV_FEE_FEE;
