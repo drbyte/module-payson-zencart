@@ -19,25 +19,26 @@ if ($_GET['mode'] == "payson") {
 
 $moduleversion = $payment_class->getApplicationVersion();
 
-$paysonPay = DB_PREFIX . $paysonDbTablePaytrans;
-
 $token = $_POST['token'];
-
 
 $trackingId = zen_db_prepare_input($_POST['trackingId']);
 
 if(!isset($trackingId))
     die("Tracking id has to be set");
 
-$response = paysonValidateIpnMessage($userid, $md5key, $moduleversion, $paysonIpnMessageValidationURL, $req['input']);
+$validationResult = paysonValidateIpnMessage($userid, $md5key, $moduleversion, $paysonIpnMessageValidationURL, $req['input']);
 
-if ($response != "VERIFIED")
+if ($validationResult != "VERIFIED")
     die("Invalid response from Payson");
 
-$res = $db->Execute("SELECT orders_id, session_data FROM " . $paysonPay . " WHERE trackingId = " . $trackingId);
+$res = $db->Execute("SELECT orders_id, session_data FROM " . $payment_class->tableForPaysonData . " WHERE trackingId = " . $trackingId);
 
-if ($res->fields['orders_id'])
+$orderId = $res->fields['orders_id'];
+
+if ($orderId)
+{
     die("This order has already been completed");
+}
 
 // Restore session data used during checkout
 session_decode($res->fields['session_data']);
