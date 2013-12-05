@@ -149,8 +149,11 @@ class payson extends base {
 
         $invoiceAmountLimit = $paysonInvoiceMinimalOrderValue;
 
+        $useInvoice = false;
+
         if ($this->invoiceEnabled && $order->info['total'] * $order->info['currency_value'] > $invoiceAmountLimit) {
             $fieldsArray[] = array("title" => MODULE_PAYMENT_PAYSON_INV_TEXT_CATALOG_LOGO, "field" => zen_draw_radio_field("payson-method", 'payson-invoice', $isInvoiceSelected, 'id="payson-invoice" onclick="document.getElementById(\'pmt-payson\').checked = checked;"'), 'tag' => "payson-invoice");
+            $useInvoice = true;
         }
 
         if (sizeof($fieldsArray) == 1) {
@@ -158,7 +161,8 @@ class payson extends base {
 
             $moduleData = array('id' => $this->code, 'module' => $fieldsArray[0]['title']);
 
-            if ($this->invoiceEnabled) {
+            if ($useInvoice) {
+
                 $invoiceModuleFieldData = array();
                 $invoiceModuleFieldData[] = array('field' => zen_draw_hidden_field('payson-method', 'payson-invoice'));
 
@@ -244,16 +248,16 @@ class payson extends base {
 
         $totalAmount = 0;
         $orderItemList = array();
-
+        
         $this->setProductOrderList($order, $orderItemList, $totalAmount);
-
         $this->setCouponOrderList($order, $orderItemList, $totalAmount);
 
         $this->setShippingOrderList($order, $orderItemList, $totalAmount);
-
         if ($this->isInvoicePayment) {
             $this->addInvoiceFeeToPaysonData($order, $totalAmount, $postData);
         }
+
+
 
         $postData['amount'] = $totalAmount;
 
@@ -276,9 +280,9 @@ class payson extends base {
         }
 
         $paysonTokenResponse = paysonTokenRequest(MODULE_PAYMENT_PAYSON_BUSINESS_ID, MODULE_PAYMENT_PAYSON_MD5KEY, $this->paysonModuleVersion, $paysonTokenRequestURL, $postData, $orderItemList, $defaults, true);
-
         //2 validate response
         $paysonTokenResponseValid = paysonTokenResponseValidate($paysonTokenResponse);
+       
         if ($paysonTokenResponseValid == true) {
             $paysonToken = paysonGetToken($paysonTokenResponse);
 
@@ -315,7 +319,7 @@ class payson extends base {
         }
         return false;
     }
-
+       
     /**
      * Display Credit Card Information on the Checkout Confirmation Page
      * Since none is collected for payson before forwarding to payson site, this is skipped
@@ -336,13 +340,13 @@ class payson extends base {
     function process_button() {
         $process_button_string = '';
         return $process_button_string;
+        
     }
 
     /**
      * Store transaction info to the order and process any results that come back from the payment gateway
      */
     function before_process() {
-
 
         include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
 
@@ -353,7 +357,7 @@ class payson extends base {
         if (strlen($token) < 20) {
             zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
         }
-
+        
         $orderData = $this->getOrderDataFromToken($token);
 
         $paymentDetailsResponse = paysonGetPaymentDetails(MODULE_PAYMENT_PAYSON_BUSINESS_ID, MODULE_PAYMENT_PAYSON_MD5KEY, $this->paysonModuleVersion, $paysonPaymentDetailsURL, $token);
@@ -609,26 +613,37 @@ class payson extends base {
             $totalAmount += number_format(number_format($price_without_tax, 2, '.', '') * (1 + $taxPercentage) * $order->products[$i]['qty'], 2, '.', '');
         }
     }
-
     private function setCouponOrderList($order, &$orderItemList, &$totalAmount) {
-
+        global $db;
         $couponAmount = 0;
-
         if (isset($order->info['coupon_code'])) {
-            $couponQuery = $db->execute("select * from " . TABLE_COUPONS . " where coupon_code='" . $order->info['coupon_code'] . "' AND coupon_active='Y' ");
+        $couponQuery = $db->Execute("SELECT * FROM " . TABLE_COUPONS . " WHERE coupon_code=" . $order->info['coupon_code'] . " AND coupon_active='Y'" );
+        if ($couponQuery->RecordCount() == 1) {
 
-            if ($couponQuery->RecordCount() == 1) {
-                $couponAmount = $couponQuery->fields['coupon_amount'] * $order->info['currency_value'];
+                if($couponQuery->fields['coupon_type'] == 'F') {
+                    $couponAmount = $couponQuery->fields['coupon_amount'] * $order->info['currency_value'];    
+                } else {
+
+
+
+                    $couponAmount = $totalAmount * ($couponQuery->fields['coupon_amount']/100);
+
+                }
+
+                
                 $coupon_id = $couponQuery->fields['coupon_id'];
+               
             }
         }
+        if ($couponAmount > 0) { 
+            $couponDescQuery = $db->Execute("SELECT * FROM " . TABLE_COUPONS_DESCRIPTION . " WHERE coupon_id= " . $coupon_id . " AND language_id=" . $_SESSION['languages_id']);
+            
+            $couponDescription = $couponDescQuery->fields['coupon_description'] ?: $couponDescQuery->fields['coupon_name'];
+            $taxPercentage = 0;
 
-        if ($couponAmount > 0) {
-            $couponDescQuery = $db->execute("select * from " . TABLE_COUPONS_DESCRIPTION . " where coupon_id=" . $coupon_id . " AND language_id=" . $_SESSION['languages_id']);
-            $couponDescription = $couponDescQuery->fields['coupon_description'];
-            $taxPercentage = zen_get_tax_rate(MODULE_PAYMENT_PAYSON_TAX_CLASS, $order->billing['country']['id'], $order->billing['zone_id']) / 100;
 
             $price_without_tax = ($couponAmount / (1 + $taxPercentage));
+            
 
             $orderItemList[] = array(
                 'description' => urlencode($couponDescription),
@@ -638,13 +653,7 @@ class payson extends base {
                 'taxPercentage' => number_format($taxPercentage, 2, '.', ''),
             );
 
-
-            $couponAmount = number_format($couponAmount, 2, '.', ',');
-
-            if ($couponAmount < 0)
-                $couponAmount *= -1;
-
-            $total_amount -= $couponAmount;
+            $totalAmount -= $couponAmount;
         }
     }
 
