@@ -3,6 +3,14 @@ Payson Payment Module - Zencart
 Requirements: 
 
 * Curl
+* Zencart v.1.5.1
+-------------------------------------- 
+2013-05-06
+Bugfix:
+Changes has been made to get gift cards and discounts to work with our module and Zencart.
+
+We have also done changes to invoice when the amount is smaller than 30 invoice option is no 
+longer the default choice but rather credit card and bank, granted that the invoice option is applicable. 
 -------------------------------------- 
 2012-11-13 v1.7
 
