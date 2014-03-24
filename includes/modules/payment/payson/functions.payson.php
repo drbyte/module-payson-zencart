@@ -152,7 +152,7 @@ function paysonGetPaymentDetails($userid, $md5key, $moduleversion, $url, $token)
     return $res;
 }
 
-function paysonTokenRequest($userid, $md5key, $moduleversion, $url, $postdata, $orderitemslist, $defaults, $processOrderList = false) {
+function paysonTokenRequest($userid, $md5key, $moduleversion, $url, $postdata, $orderitemslist, $defaults, $Receipts, $processOrderList = false) {
     $headerdata = _paysonGetHeaderData($userid, $md5key, $moduleversion);
 
     //urls
@@ -169,11 +169,13 @@ function paysonTokenRequest($userid, $md5key, $moduleversion, $url, $postdata, $
 
     //fees
     $feesPayer = $defaults['feesPayer'];
-
+    //Receipt page
+    $showReceiptPage = $Receipts['showReceiptPage'];
     //misc
     $memo = urlencode($postdata['memo']);
     $custom = urlencode($postdata['custom']);
     $trackingId = $postdata['trackingId'];
+
     //$guaranteeOffered = $postdata['guaranteeOffered'];
     $guaranteeOffered = 'NO';
 
@@ -210,6 +212,8 @@ function paysonTokenRequest($userid, $md5key, $moduleversion, $url, $postdata, $
 
     //fees
     $postdata2 .= "&feesPayer=" . $feesPayer;
+    //Receipts
+    $postdata2 .=  "&showReceiptPage=" . $showReceiptPage;
     //invoiceFee?
     if ($postdata['invoiceFee'] > 0) {
         $postdata2 .= "&invoiceFee=" . urlencode($postdata['invoiceFee']);

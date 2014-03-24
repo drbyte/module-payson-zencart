@@ -51,6 +51,9 @@ class payson extends base {
     var $directEnabled;
     var $isInvoicePayment;
     var $tableForPaysonData;
+    var $showReceiptPage;
+
+    // var $testmode;
 
     /**
      * constructor
@@ -64,12 +67,16 @@ class payson extends base {
         global $order;
         $this->code = 'payson';
         $this->codeVersion = PROJECT_VERSION_MAJOR . '.' . PROJECT_VERSION_MINOR;
-        $this->paysonModuleVersion = 'PAYSON-ZENCART-2.0';
+        $this->paysonModuleVersion = 'PAYSON-ZENCART-2.1';
 
         $this->tableForPaysonData = DB_PREFIX . $paysonDbTablePaytrans;
 
         $this->invoiceEnabled = false;
         $this->directEnabled = false;
+
+
+
+   
 
         if (IS_ADMIN_FLAG === true) {
             $this->title = MODULE_PAYMENT_PAYSON_TEXT_ADMIN_TITLE; // Payment Module title in Admin
@@ -84,7 +91,11 @@ class payson extends base {
         if ((int) MODULE_PAYMENT_PAYSON_ORDER_STATUS_ID > 0) {
             $this->order_status = MODULE_PAYMENT_PAYSON_ORDER_STATUS_ID;
         }
-
+        if (MODULE_PAYMENT_PAYSON_RECEIPT_PAGE == 'True') {
+            $this->showReceiptPage = 'true';
+        } elseif (MODULE_PAYMENT_PAYSON_RECEIPT_PAGE == 'False') {
+            $this->showReceiptPage = 'false';
+        }
         if (MODULE_PAYMENT_PAYSON_INVOICE_ENABLED == "True") {
             $this->invoiceEnabled = true;
 
@@ -95,6 +106,8 @@ class payson extends base {
                 $_SESSION['paysonIsInvoice'] = false;
             }
         }
+
+
 
         $paysonDirectSetting = MODULE_PAYMENT_PAYSON_PAYMETHOD;
         $paysonDirectMethodsSelected = MODULE_PAYMENT_PAYSON_PAYMETHOD_ITEMS;
@@ -155,7 +168,6 @@ class payson extends base {
             $fieldsArray[] = array("title" => MODULE_PAYMENT_PAYSON_INV_TEXT_CATALOG_LOGO, "field" => zen_draw_radio_field("payson-method", 'payson-invoice', $isInvoiceSelected, 'id="payson-invoice" onclick="document.getElementById(\'pmt-payson\').checked = checked;"'), 'tag' => "payson-invoice");
             $useInvoice = true;
         }
-
         if (sizeof($fieldsArray) == 1) {
             $moduleData = array();
 
@@ -225,12 +237,14 @@ class payson extends base {
      *
      * @return boolean
      */
+
     function pre_confirmation_check() {
 
         include( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
 
-        global $db, $order, $currencies, $currency, $messageStack;
-        
+        global $db, $order, $currencies, $currency, $messageStack, $Receipt;
+
+
         $now = date("Y-m-d H:i:s");
         $localeCode = $this->getLanguageCodeForPayson();
         $currencyCode = strtoupper($_SESSION['currency']);
@@ -246,9 +260,10 @@ class payson extends base {
         $postData['senderFirstName'] = $order->customer['firstname'];
         $postData['senderLastName'] = $order->customer['lastname'];
 
+
         $totalAmount = 0;
         $orderItemList = array();
-        
+
         $this->setProductOrderList($order, $orderItemList, $totalAmount);
         $this->setCouponOrderList($order, $orderItemList, $totalAmount);
 
@@ -268,8 +283,9 @@ class payson extends base {
                              currency       = '" . $currencyCode . "',
                              lang           = '" . $localeCode . "',
                              created        = '" . $now . "' ");
-        
         $defaults['feesPayer'] = $paysonFeesPayerSupported[1];
+        $Receipts['showReceiptPage'] = $this->showReceiptPage;
+
 
         if ($this->isInvoicePayment) {
             $postData['fundingList'] = 'INVOICE';
@@ -279,10 +295,10 @@ class payson extends base {
             $postData['fundingList'] = explode(",", MODULE_PAYMENT_PAYSON_PAYMETHOD_ITEMS);
         }
 
-        $paysonTokenResponse = paysonTokenRequest(MODULE_PAYMENT_PAYSON_BUSINESS_ID, MODULE_PAYMENT_PAYSON_MD5KEY, $this->paysonModuleVersion, $paysonTokenRequestURL, $postData, $orderItemList, $defaults, true);
+        $paysonTokenResponse = paysonTokenRequest(MODULE_PAYMENT_PAYSON_BUSINESS_ID, MODULE_PAYMENT_PAYSON_MD5KEY, $this->paysonModuleVersion, $paysonTokenRequestURL, $postData, $orderItemList, $defaults, $Receipts, true);
         //2 validate response
         $paysonTokenResponseValid = paysonTokenResponseValidate($paysonTokenResponse);
-       
+
         if ($paysonTokenResponseValid == true) {
             $paysonToken = paysonGetToken($paysonTokenResponse);
 
@@ -319,7 +335,7 @@ class payson extends base {
         }
         return false;
     }
-       
+
     /**
      * Display Credit Card Information on the Checkout Confirmation Page
      * Since none is collected for payson before forwarding to payson site, this is skipped
@@ -340,7 +356,6 @@ class payson extends base {
     function process_button() {
         $process_button_string = '';
         return $process_button_string;
-        
     }
 
     /**
@@ -357,7 +372,7 @@ class payson extends base {
         if (strlen($token) < 20) {
             zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
         }
-        
+
         $orderData = $this->getOrderDataFromToken($token);
 
         $paymentDetailsResponse = paysonGetPaymentDetails(MODULE_PAYMENT_PAYSON_BUSINESS_ID, MODULE_PAYMENT_PAYSON_MD5KEY, $this->paysonModuleVersion, $paysonPaymentDetailsURL, $token);
@@ -429,7 +444,7 @@ class payson extends base {
     }
 
     /**
-     * Check to see whether module is installed
+     * Check to see whether module is talled
      *
      * @return boolean
      */
@@ -462,14 +477,16 @@ class payson extends base {
         $db->Execute(paysonCreatePaytransTableQuery($this->tableForPaysonData));
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_PAYSON_ENABLE_TEXT . "', 'MODULE_PAYMENT_PAYSON_STATUS', 'True', '" . MODULE_PAYMENT_PAYSON_ACCEPT_TEXT . "', '6', '0', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
+        
+        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_TEST_PAGE_TEXT . "', 'MODULE_PAYMENT_PAYSON_TEST_PAGES', 'True', '" . MODULE_PAYMENT_TEST_PAGE_HEAD . "', '6', '1', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
+        
+        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_PAYSON_INVOICE_ENABLED_HEAD . "', 'MODULE_PAYMENT_PAYSON_INVOICE_ENABLED', 'False', '" . MODULE_PAYMENT_PAYSON_INVOICE_ENABLED_TEXT . "', '6', '2', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
 
-        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_PAYSON_INVOICE_ENABLED_HEAD . "', 'MODULE_PAYMENT_PAYSON_INVOICE_ENABLED', 'False', '" . MODULE_PAYMENT_PAYSON_INVOICE_ENABLED_TEXT . "', '6', '1', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
+        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('" . MODULE_PAYMENT_PAYSON_AGENTID_HEAD . "', 'MODULE_PAYMENT_PAYSON_BUSINESS_ID','', '" . MODULE_PAYMENT_PAYSON_AGENTID_TEXT . "', '6', '3', now())");
 
-        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('" . MODULE_PAYMENT_PAYSON_AGENTID_HEAD . "', 'MODULE_PAYMENT_PAYSON_BUSINESS_ID','', '" . MODULE_PAYMENT_PAYSON_AGENTID_TEXT . "', '6', '2', now())");
+        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('" . MODULE_PAYMENT_PAYSON_SELLEREMAIL_HEAD . "', 'MODULE_PAYMENT_PAYSON_SELLER_EMAIL','" . STORE_OWNER_EMAIL_ADDRESS . "', '" . MODULE_PAYMENT_PAYSON_SELLEREMAIL_TEXT . "', '6', '3', now())");
 
-        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('" . MODULE_PAYMENT_PAYSON_SELLEREMAIL_HEAD . "', 'MODULE_PAYMENT_PAYSON_SELLER_EMAIL','" . STORE_OWNER_EMAIL_ADDRESS . "', '" . MODULE_PAYMENT_PAYSON_SELLEREMAIL_TEXT . "', '6', '2', now())");
-
-        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('" . MODULE_PAYMENT_PAYSON_MD5KEY_HEAD . "', 'MODULE_PAYMENT_PAYSON_MD5KEY','', '" . MODULE_PAYMENT_PAYSON_MD5KEY_TEXT . "', '6', '2', now())");
+        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('" . MODULE_PAYMENT_PAYSON_MD5KEY_HEAD . "', 'MODULE_PAYMENT_PAYSON_MD5KEY','', '" . MODULE_PAYMENT_PAYSON_MD5KEY_TEXT . "', '6', '3', now())");
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_PAYSON_PAYMETHOD_HEAD . "', 'MODULE_PAYMENT_PAYSON_PAYMETHOD', 'ALL', '" . MODULE_PAYMENT_PAYSON_PAYMETHOD_TEXT . "', '6', '20', 'zen_cfg_select_option(array(\'Disabled\',\'ALL\', \'Check boxes below\'), ', now())");
 
@@ -477,23 +494,27 @@ class payson extends base {
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_PAYSON_GUARANTEE_OFFERED_HEAD . "', 'MODULE_PAYMENT_PAYSON_GUARANTEE_OFFERED', 'NO', '" . MODULE_PAYMENT_PAYSON_GUARANTEE_OFFERED_TEXT . "', '6', '20', 'zen_cfg_select_option(array(\'OPTIONAL\',\'REQUIRED\',\'NO\'), ', now())");
 
-        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('" . MODULE_PAYMENT_PAYSON_CUSTOM_HEAD . "', 'MODULE_PAYMENT_PAYSON_CUSTOM','', '" . MODULE_PAYMENT_PAYSON_CUSTOM_TEXT . "', '6', '2', now())");
+        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('" . MODULE_PAYMENT_PAYSON_CUSTOM_HEAD . "', 'MODULE_PAYMENT_PAYSON_CUSTOM','', '" . MODULE_PAYMENT_PAYSON_CUSTOM_TEXT . "', '6', '3', now())");
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, use_function, set_function, date_added) values ('Payment Zone', 'MODULE_PAYMENT_PAYSON_ZONE', '0', 'If a zone is selected, only enable this payment method for that zone.', '6', '4', 'zen_get_zone_class_title', 'zen_cfg_pull_down_zone_classes(', now())");
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Pending Notification Status', 'MODULE_PAYMENT_PAYSON_PROCESSING_STATUS_ID', '" . DEFAULT_ORDERS_STATUS_ID . "', 'Set the status of orders made with this payment module that are not yet completed to this value<br />(\'Pending\' recommended)', '6', '5', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Order Status', 'MODULE_PAYMENT_PAYSON_ORDER_STATUS_ID', '2', 'Set the status of orders made with this payment module that have completed payment to this value<br />(\'Processing\' recommended)', '6', '6', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
-       
+
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Send Payson invoice when status is changed to', 'MODULE_PAYMENT_PAYSON_INV_DELIVERED_STATUS_ID', '3', 'Send PDF invoice to user when I change order status to: <br />(\'Shipped\' recommended)', '6', '7', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_PAYSON_INVOICE_MANAGE_BACKEND_HEAD . "', 'MODULE_PAYMENT_PAYSON_INVOICE_MANAGE_BACKEND', 'False', '" . MODULE_PAYMENT_PAYSON_INVOICE_MANAGE_BACKEND_TEXT . "', '6', '1', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Cancel Payson invoice when status is changed to', 'MODULE_PAYMENT_PAYSON_INV_CANCELED_STATUS_ID', '1', 'Cancel the Payson invoice when I change order status to: <br />(\'New status Canceled\' recommended)', '6', '8', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
 
-        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Credit Payson invoice when status is changed to', 'MODULE_PAYMENT_PAYSON_INV_CREDIT_STATUS_ID', '1', 'Credit the Payson invoice when I change order status to: <br />(\'New status Credited\' recommended)', '6', '9', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
+        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Credit Payson invoice when status is changed to ', 'MODULE_PAYMENT_PAYSON_INV_CREDIT_STATUS_ID', '1', 'Credit the Payson invoice when I change order status to: <br />(\'New status Credited\' recommended)', '6', '9', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
 
         $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Sort order of display.', 'MODULE_PAYMENT_PAYSON_SORT_ORDER', '0', 'Sort order of display. Lowest is displayed first.', '6', '8', now())");
+
+        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('" . MODULE_PAYMENT_RECEIPT_PAGE_TEXT . "', 'MODULE_PAYMENT_PAYSON_RECEIPT_PAGE', 'True', '" . MODULE_PAYMENT_RECEIPT_PAGE_HEAD . "', '6', '1', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
+
+        
 
         $this->notify('NOTIFY_PAYMENT_PAYSON_INSTALLED');
     }
@@ -524,6 +545,7 @@ class payson extends base {
     function keys() {
         $keys_list = array(
             'MODULE_PAYMENT_PAYSON_SORT_ORDER',
+            'MODULE_PAYMENT_PAYSON_TEST_PAGES',
             'MODULE_PAYMENT_PAYSON_STATUS',
             'MODULE_PAYMENT_PAYSON_BUSINESS_ID',
             'MODULE_PAYMENT_PAYSON_SELLER_EMAIL',
@@ -534,12 +556,13 @@ class payson extends base {
             'MODULE_PAYMENT_PAYSON_CUSTOM',
             'MODULE_PAYMENT_PAYSON_ZONE',
             'MODULE_PAYMENT_PAYSON_PROCESSING_STATUS_ID',
-            'MODULE_PAYMENT_PAYSON_ORDER_STATUS_ID',
-            'MODULE_PAYMENT_PAYSON_REFUND_ORDER_STATUS_ID',
+            'MODULE_PAYMENT_PAYSON_ORDER_STATUS_ID',             
             'MODULE_PAYMENT_PAYSON_INVOICE_MANAGE_BACKEND',
             'MODULE_PAYMENT_PAYSON_INV_DELIVERED_STATUS_ID',
             'MODULE_PAYMENT_PAYSON_INV_CANCELED_STATUS_ID',
             'MODULE_PAYMENT_PAYSON_INV_CREDIT_STATUS_ID',
+            'MODULE_PAYMENT_PAYSON_RECEIPT_PAGE',
+            
         );
 
         return $keys_list;
@@ -613,37 +636,43 @@ class payson extends base {
             $totalAmount += number_format(number_format($price_without_tax, 2, '.', '') * (1 + $taxPercentage) * $order->products[$i]['qty'], 2, '.', '');
         }
     }
+
     private function setCouponOrderList($order, &$orderItemList, &$totalAmount) {
-        global $db;
+       global $db;
         $couponAmount = 0;
-        if (isset($order->info['coupon_code'])) {
-        $couponQuery = $db->Execute("SELECT * FROM " . TABLE_COUPONS . " WHERE coupon_code=" . $order->info['coupon_code'] . " AND coupon_active='Y'" );
-        if ($couponQuery->RecordCount() == 1) {
 
-                if($couponQuery->fields['coupon_type'] == 'F') {
-                    $couponAmount = $couponQuery->fields['coupon_amount'] * $order->info['currency_value'];    
-                } else {
+        $coupon_id = $_SESSION['cc_id'];
+        if (isset($_SESSION['cc_id'])) {
+            $coupon = $db->Execute('SELECT * FROM ' . TABLE_COUPONS . ' WHERE coupon_id=' . $coupon_id . " AND coupon_active='Y' ");
 
+            $couponAmount = $coupon->fields['coupon_amount'];
 
 
-                    $couponAmount = $totalAmount * ($couponQuery->fields['coupon_amount']/100);
-
-                }
-
-                
-                $coupon_id = $couponQuery->fields['coupon_id'];
-               
+            switch ($coupon->fields['coupon_type']) {
+                //Percental discount coupon
+                case 'P':
+                    $couponAmount = $totalAmount * ($coupon->fields['coupon_amount'] / 100);
+                    break;
+                // Fixed value discount coupon
+                case 'F':
+                    $couponAmount = $coupon->fields['coupon_amount'] * $order->info['currency_value'];
+                    break;
+                //Free shipping discount coupon
+                case 'S':
+                    $coupon_Amount = $order->info['shipping_cost'] * (-1);
+                    break;
             }
         }
-        if ($couponAmount > 0) { 
+
+        if ($couponAmount > 0) {
             $couponDescQuery = $db->Execute("SELECT * FROM " . TABLE_COUPONS_DESCRIPTION . " WHERE coupon_id= " . $coupon_id . " AND language_id=" . $_SESSION['languages_id']);
-            
-            $couponDescription = $couponDescQuery->fields['coupon_description'] ?: $couponDescQuery->fields['coupon_name'];
+
+            $couponDescription = $couponDescQuery->fields['coupon_description'] ? : $couponDescQuery->fields['coupon_name'];
             $taxPercentage = 0;
 
 
+
             $price_without_tax = ($couponAmount / (1 + $taxPercentage));
-            
 
             $orderItemList[] = array(
                 'description' => urlencode($couponDescription),
@@ -652,7 +681,6 @@ class payson extends base {
                 'unitPrice' => number_format(-1 * $price_without_tax, 2, '.', ''),
                 'taxPercentage' => number_format($taxPercentage, 2, '.', ''),
             );
-
             $totalAmount -= $couponAmount;
         }
     }

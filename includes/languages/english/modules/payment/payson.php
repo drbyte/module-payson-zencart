@@ -50,6 +50,9 @@ if (IS_ADMIN_FLAG === true) {
 
     define('MODULE_PAYMENT_PAYSON_INVOICE_MANAGE_BACKEND_HEAD', $paysonAdmin[$local_lang]['manage_invoice_from_store_head']);
     define('MODULE_PAYMENT_PAYSON_INVOICE_MANAGE_BACKEND_TEXT', $paysonAdmin[$local_lang]['manage_invoice_from_store_text']);
+    
+    define('MODULE_PAYMENT_RECEIPT_PAGE_HEAD', $paysonAdmin[$local_lang]['showReceiptPage']);
+    define('MODULE_PAYMENT_RECEIPT_PAGE_TEXT', $paysonAdmin[$local_lang]['textReceiptPage']);
 } else {
     define('MODULE_PAYMENT_PAYSON_TEXT_DESCRIPTION', '<strong>' . $paysonAdmin[$local_lang]['text_catalog_title'] . '</strong>');
 }

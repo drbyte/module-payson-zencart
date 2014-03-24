@@ -1,5 +1,5 @@
 <?php
-
+//include_once( DIR_FS_CATALOG . 'includes/modules/payment/payson/payson.php');
 /**
  * @copyright 2010 Payson
  */
@@ -13,12 +13,25 @@ $paysonLanguagesSupported = array('SV', 'EN');
 $paysonFeesPayerSupported = array('EACHRECEIVER', 'PRIMARYRECEIVER', 'SENDER', 'SECONDARYONLY');
 
 //URL for POST, GET or CURL
-$paysonTokenRequestURL = "https://test-api.payson.se/1.0/Pay/";
-$paysonBrowserRedirectURL = "https://test-www.payson.se/paySecure/?token=";
-$paysonBrowserPostURL = "https://test-www.payson.se/paySecure/";
-$paysonPaymentDetailsURL = "https://test-api.payson.se/1.0/PaymentDetails/"; 
-$paysonIpnMessageValidationURL = "https://test-api.payson.se/1.0/Validate/";
-$paysonPaymentUpdateURL = "https://test-api.payson.se/1.0/PaymentUpdate/";
+//test
+
+        if (MODULE_PAYMENT_PAYSON_TEST_PAGES =='True') {
+            $paysonTokenRequestURL = "https://test-api.payson.se/1.0/Pay/";
+            $paysonBrowserRedirectURL = "https://test-www.payson.se/paySecure/?token=";
+            $paysonBrowserPostURL = "https://test-www.payson.se/paySecure/";
+            $paysonPaymentDetailsURL = "https://test-api.payson.se/1.0/PaymentDetails/";
+            $paysonIpnMessageValidationURL = "https://test-api.payson.se/1.0/Validate/";
+            $paysonPaymentUpdateURL = "https://test-api.payson.se/1.0/PaymentUpdate/";
+             }elseif (MODULE_PAYMENT_PAYSON_TEST_PAGES =='False') {
+                
+            $paysonTokenRequestURL = "https://api.payson.se/1.0/Pay/";
+            $paysonBrowserRedirectURL = "https://www.payson.se/paySecure/?token=";
+            $paysonBrowserPostURL = "https://www.payson.se/paySecure/";
+            $paysonPaymentDetailsURL = "https://api.payson.se/1.0/PaymentDetails/";
+            $paysonIpnMessageValidationURL = "https://api.payson.se/1.0/Validate/";
+            $paysonPaymentUpdateURL = "https://api.payson.se/1.0/PaymentUpdate/";
+            }
+
 //LINKs
 $paysonSignInLink = "https://www.payson.se/SignIn/";
 $paysonSignUpLink = "https://www.payson.se/account/signup/";
@@ -87,7 +100,11 @@ $paysonAdmin['SV']['config_instruction2'] = '2. ...och klicka "install" ovanf&ou
 $paysonAdmin['EN']['config_instruction2_vm'] = '2. ...and fill in form below to enable Payson support... and "save" your Payson settings.';
 $paysonAdmin['SV']['config_instruction2_vm'] = '2. ...och fyll i formul&auml;r nedan f&oumlr att aktivera Payson support... och "spara" dina Paysoninst&auml;llningar.';
 
+$paysonAdmin['EN']['Test_Live_env'] = 'True = Test server, False = Real server';
+$paysonAdmin['SV']['Test_Live_env'] = 'True = Test servern, False = riktiga servern';
 
+$paysonAdmin['EN']['Test_Live_env_message'] = 'Choose whether to connect to our test or real server?';
+$paysonAdmin['SV']['Test_Live_env_message'] = 'Välj om du vill ansluta till vår test eller riktiga server?';
 
 
 $paysonAdmin['EN']['config_instruction3'] = '</ul><font color="green"><hr /><strong>Requirements:</strong></font><br /><hr />*<strong>Payson Account</strong> (<a href="'.$paysonSignUpLink.'" target="_blank">click to signup</a>)<br />*<strong>*<strong>Port 80</strong> is used for bidirectional communication with the gateway, so must be open on your host\'s router/firewall<br />*<strong>Settings</strong> must be configured as described above.';
@@ -103,20 +120,20 @@ $paysonAdmin['SV']['accept_payson'] = 'Vill du ta emot betalningar med Payson?';
 $paysonAdmin['EN']['inv_accept_payson'] = 'Do you want to accept Payson Invoice payments?';
 $paysonAdmin['SV']['inv_accept_payson'] = 'Vill du ta emot betalningar med Payson Faktura?';
 
-
-
 $paysonAdmin['EN']['enable_payson'] = 'Enable Payson Module';
 $paysonAdmin['SV']['enable_payson'] = 'Aktivera Paysonmodul';
+
 
 $paysonAdmin['EN']['inv_enable_payson'] = 'Enable Payson Invoice Module';
 $paysonAdmin['SV']['inv_enable_payson'] = 'Aktivera Payson fakturamodul';
 
+$paysonAdmin['EN']['showReceiptPage'] = 'Enable Payson Receipt Page';
+$paysonAdmin['EN']['showReceiptPage_Text'] = 'On this option you can choose whether you would like to use our receipt page or not';
+$paysonAdmin['SV']['showReceiptPage'] = 'Aktivera Paysons Kvittosida';
+$paysonAdmin['SV']['showReceiptPage_Text'] = 'Här kan ni välja om ni använda vår kvittosida eller inte';
 
 $paysonAdmin['EN']['inv_fee'] = 'Invoice Fee';
 $paysonAdmin['SV']['inv_fee'] = 'Faktureringsavgift';
-
-
-
 
 $paysonAdmin['EN']['agentid_head'] = 'Agent Id';
 $paysonAdmin['SV']['agentid_head'] = 'Agentid';

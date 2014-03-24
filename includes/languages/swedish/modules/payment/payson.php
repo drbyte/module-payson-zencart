@@ -44,12 +44,19 @@ if (IS_ADMIN_FLAG === true) {
 
     define('MODULE_PAYMENT_PAYSON_CUSTOM_HEAD', $paysonAdmin[$local_lang]['custommess_head']);
     define('MODULE_PAYMENT_PAYSON_CUSTOM_TEXT', $paysonAdmin[$local_lang]['custommess_text']);
-    
+
     define('MODULE_PAYMENT_PAYSON_INVOICE_ENABLED_HEAD', $paysonAdmin[$local_lang]['enable_payson_invoice_head']);
     define('MODULE_PAYMENT_PAYSON_INVOICE_ENABLED_TEXT', $paysonAdmin[$local_lang]['enable_payson_invoice_text']);
-    
-   define('MODULE_PAYMENT_PAYSON_INVOICE_MANAGE_BACKEND_HEAD', $paysonAdmin[$local_lang]['manage_invoice_from_store_head']);
+
+    define('MODULE_PAYMENT_PAYSON_INVOICE_MANAGE_BACKEND_HEAD', $paysonAdmin[$local_lang]['manage_invoice_from_store_head']);
     define('MODULE_PAYMENT_PAYSON_INVOICE_MANAGE_BACKEND_TEXT', $paysonAdmin[$local_lang]['manage_invoice_from_store_text']);
+    
+    define('MODULE_PAYMENT_RECEIPT_PAGE_HEAD', $paysonAdmin[$local_lang]['showReceiptPage']);
+    define('MODULE_PAYMENT_RECEIPT_PAGE_TEXT', $paysonAdmin[$local_lang]['showReceiptPage_Text']);
+    
+    define('MODULE_PAYMENT_TEST_PAGE_HEAD', $paysonAdmin[$local_lang]['Test_Live_env']);
+    define('MODULE_PAYMENT_TEST_PAGE_TEXT', $paysonAdmin[$local_lang]['Test_Live_env_message']);
+    
     
     
 } else {
