@@ -647,7 +647,6 @@ class payson extends base {
 
             $couponAmount = $coupon->fields['coupon_amount'];
 
-            $this->logIt($coupon->fields['coupon_type']);
             switch ($coupon->fields['coupon_type']) {
                 //Percental discount coupon
                 case 'P':
