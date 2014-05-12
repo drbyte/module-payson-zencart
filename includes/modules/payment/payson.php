@@ -67,7 +67,7 @@ class payson extends base {
         global $order;
         $this->code = 'payson';
         $this->codeVersion = PROJECT_VERSION_MAJOR . '.' . PROJECT_VERSION_MINOR;
-        $this->paysonModuleVersion = 'PAYSON-ZENCART-2.1';
+        $this->paysonModuleVersion = 'PAYSON-ZENCART-2.1.1';
 
         $this->tableForPaysonData = DB_PREFIX . $paysonDbTablePaytrans;
 
@@ -637,8 +637,8 @@ class payson extends base {
         }
     }
 
-    private function setCouponOrderList($order, &$orderItemList, &$totalAmount) {
-       global $db;
+       private function setCouponOrderList($order, &$orderItemList, &$totalAmount) {
+        global $db;
         $couponAmount = 0;
 
         $coupon_id = $_SESSION['cc_id'];
@@ -647,24 +647,24 @@ class payson extends base {
 
             $couponAmount = $coupon->fields['coupon_amount'];
 
-
+            $this->logIt($coupon->fields['coupon_type']);
             switch ($coupon->fields['coupon_type']) {
                 //Percental discount coupon
                 case 'P':
-                    $couponAmount = $totalAmount * ($coupon->fields['coupon_amount'] / 100);
+                    $couponAmount = $totalAmount * ($coupon->fields['coupon_amount'] / 100);                
                     break;
                 // Fixed value discount coupon
                 case 'F':
-                    $couponAmount = $coupon->fields['coupon_amount'] * $order->info['currency_value'];
+                    $couponAmount = $coupon->fields['coupon_amount'] * $order->info['currency_value'];                  
                     break;
                 //Free shipping discount coupon
                 case 'S':
-                    $coupon_Amount = $order->info['shipping_cost'] * (-1);
+                    $couponAmount = $order->info['shipping_cost'] * (-1);                 
                     break;
             }
         }
 
-        if ($couponAmount > 0) {
+        if ($couponAmount != 0) {
             $couponDescQuery = $db->Execute("SELECT * FROM " . TABLE_COUPONS_DESCRIPTION . " WHERE coupon_id= " . $coupon_id . " AND language_id=" . $_SESSION['languages_id']);
 
             $couponDescription = $couponDescQuery->fields['coupon_description'] ? : $couponDescQuery->fields['coupon_name'];
@@ -673,15 +673,28 @@ class payson extends base {
 
 
             $price_without_tax = ($couponAmount / (1 + $taxPercentage));
-
-            $orderItemList[] = array(
-                'description' => urlencode($couponDescription),
-                'sku' => $coupon_id,
-                'quantity' => 1,
-                'unitPrice' => number_format(-1 * $price_without_tax, 2, '.', ''),
-                'taxPercentage' => number_format($taxPercentage, 2, '.', ''),
-            );
-            $totalAmount -= $couponAmount;
+            if ($couponAmount > 0) {
+                $orderItemList[] = array(
+                    'description' => urlencode($couponDescription),
+                    'sku' => $coupon_id,
+                    'quantity' => 1,
+                    'unitPrice' => number_format(-1 * $price_without_tax, 2, '.', ''),
+                    'taxPercentage' => number_format($taxPercentage, 2, '.', ''),
+                );
+                $totalAmount -= $couponAmount;
+                
+            }
+            if ($couponAmount < 0) {
+                $orderItemList[] = array(
+                    'description' => urlencode($couponDescription),
+                    'sku' => $coupon_id,
+                    'quantity' => 1,
+                    'unitPrice' => number_format(1 * $price_without_tax, 2, '.', ''),
+                    'taxPercentage' => number_format($taxPercentage, 2, '.', ''),
+                );
+                $totalAmount += $couponAmount;
+               
+            }
         }
     }
 
