@@ -53,4 +53,3 @@ $_SESSION["paysonToken"] = $token;
 $checkoutProcessFile = DIR_WS_MODULES . FILENAME_CHECKOUT_PROCESS . ".php";
 
 include($checkoutProcessFile);
-?>
