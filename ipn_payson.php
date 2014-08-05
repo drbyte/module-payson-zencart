@@ -3,6 +3,11 @@
 $req['input'] = file_get_contents('php://input');
 
 require_once('includes/application_top.php');
+
+$_GET['main_page'] = 'checkout_process';
+$language_page_directory = DIR_WS_LANGUAGES . $_SESSION['language'] . '/';
+$directory_array = $template->get_template_part($code_page_directory, '/^header_php/');
+
 require_once( DIR_FS_CATALOG . 'includes/modules/payment/payson.php');
 require_once( DIR_FS_CATALOG . 'includes/modules/payment/payson/def.payson.php');
 
